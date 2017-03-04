@@ -1,4 +1,4 @@
-# makeresearch
+# Make Research (mkres)
 Database journalism tool for making pretty-printed PDF research reports from MySQL queries.
 The idea is to write structured LaTEX code in comment blocks in the SQL script that will format well along
 the tables output by each query.
@@ -21,7 +21,7 @@ You only need to mount a working volume and link mysql to the espena/latex conta
 There'a docker-compose.yml file for you to adapt to your needs.
 
 ## Install
-Run sudo make install. The script will be copied to your users home/bin directory.
+Run sudo make install. The script will be copied to your /usr/local/bin directory.
 
 ## How to use
 If you have a SQL file called research.sql, then run "makeres research". If all is good, the file
