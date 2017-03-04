@@ -3,9 +3,8 @@ Database journalism tool for making pretty-printed PDF research reports from MyS
 The idea is to write structured LaTEX code in comment blocks in the SQL script that will format well along
 the tables output by each query.
 
-This tool is inspired by the way common source code documentation tools work. It utilizes the commonly
-used make tool to build the PDF from the SQL queries. Study the dummy source file reserach.sql and
-the generated research.pdf to get the idea.
+This tool is inspired by the way common source code documentation tools work. Study the dummy source file
+research.sql and the generated research.pdf to get the idea.
 
 ## Dependencies
 This utility runs on Ubuntu 15.04 systems with the following packages installed:
