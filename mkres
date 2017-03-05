@@ -83,35 +83,42 @@ prepare_queries() {
   csplit --digits=2 --elide-empty-files --quiet --prefix="$TMPDIR/$FILETITLE." "$TARGET" "/\/\*\*/" "{*}"; \
 }
 
-build_latex_body() {
-  for file in $(find "$TMPDIR" -name "$FILETITLE.*");
-		do
-			title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
-			latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
-			alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
-			echo " ---> $title ($alignment)"
-			csvfile="$(basename $file).csv"
-			MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < $file | sed 's/,/\\char44\{\}/g' | sed 's/_/\\char95\{\}/g' | sed 's/|/\\char124\{\}/g'| sed 's/%/\\char37\{\}/g'| sed 's/ /\\:/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$csvfile"
-			echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY"
-      echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY"
-			echo "$latex" >> "$LATEX_BODY"
-			echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY"
-			printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}}]{%s}\n" \
-						 "$alignment" \
-						 "$csvfile" \
-						 >> "$LATEX_BODY"
-			echo "\\FloatBarrier" >> "$LATEX_BODY"
-			echo "\\end{minipage}" >> "$LATEX_BODY"
-			echo "\\bigskip" >> "$LATEX_BODY"
-	done
-}
-
-pdf_from_latex() {
-  ( cd "$TMPDIR" && pdflatex main.tex && pdflatex main.tex && mv main.pdf "$OUTPUT" )
+build() {
+  i=0
+  while [ "$i" -lt 2 ]
+  do
+    for file in $(find "$TMPDIR" -name "$FILETITLE.*" | sort);
+  		do
+  			title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
+  			latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
+  			alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
+  			echo " ---> $title ($alignment)"
+  			csvfile="$(basename $file).csv"
+        if [ -f "$TMPDIR/$csvfile" ]; then
+          # Do queries on second run
+          MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < $file | sed 's/,/\\char44\{\}/g' | sed 's/_/\\char95\{\}/g' | sed 's/|/\\char124\{\}/g'| sed 's/%/\\char37\{\}/g'| sed 's/ /\\:/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$csvfile"
+        else
+          # No queries on first run, just create empty data files
+          touch "$TMPDIR/$csvfile"
+        fi
+  			echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY"
+        echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY"
+  			echo "$latex" >> "$LATEX_BODY"
+  			echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY"
+  			printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}}]{%s}\n" \
+  						 "$alignment" \
+  						 "$csvfile" \
+  						 >> "$LATEX_BODY"
+  			echo "\\FloatBarrier" >> "$LATEX_BODY"
+  			echo "\\end{minipage}" >> "$LATEX_BODY"
+  			echo "\\bigskip" >> "$LATEX_BODY"
+        ( cd "$TMPDIR" && pdflatex main.tex && mv main.pdf "$OUTPUT" )
+  	done
+    i=`expr $i + 1`
+  done
 }
 
 load_config
 write_latex_main
 prepare_queries
-build_latex_body
-pdf_from_latex
+build
