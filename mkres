@@ -1,21 +1,34 @@
 #!/bin/bash
 
-MYSQL_HOST="mysql"
-MYSQL_PORT="3306"
-MYSQL_USER="root"
-MYSQL_PASS="secret"
 
 FILETITLE="$1"
 TARGET="$PWD/$FILETITLE.sql"
+CONFIGFILE="$PWD/$FILETITLE.conf"
 OUTPUT="$PWD/$FILETITLE.pdf"
 TMPDIR="$(mktemp -d)"
 LATEX_MAIN="$TMPDIR/main.tex"
 LATEX_BODY="$TMPDIR/body.tex"
 
+ln -s -f $TMPDIR debug
+
+load_config() {
+  if [ ! -f "$CONFIGFILE" ]; then
+    cat <<EOF > "$CONFIGFILE"
+DOCUMENT_LANGUAGE="english"
+DOCUMENT_TITLE="My research report"
+DOCUMENT_AUTHOR="Espen Andersen"
+MYSQL_HOST="mysql"
+MYSQL_PORT="3306"
+MYSQL_USER="root"
+MYSQL_PASS="secret"
+EOF
+  fi
+  source "$CONFIGFILE"
+}
+
 write_latex_main() {
   cat <<EOF > "$LATEX_MAIN"
   \documentclass[10pt,a4paper]{article}
-  \usepackage[norsk]{babel}
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
   \usepackage{amsmath}
@@ -24,6 +37,7 @@ write_latex_main() {
   \usepackage{makeidx}
   \usepackage{graphicx}
   \usepackage{lmodern}
+  \usepackage{parskip}
   \usepackage{kpfonts}
   \usepackage[left=2.5cm,right=2.5cm,top=2.5cm,bottom=3cm]{geometry}
   \usepackage{pgfplotstable}
@@ -32,26 +46,12 @@ write_latex_main() {
   \usepackage{array}
   \usepackage{colortbl}
   \usepackage{placeins}
-
-  \definecolor{cellshade}{rgb}{0.8, 0.8, 0.8}
-
+  \usepackage[$DOCUMENT_LANGUAGE]{babel}
   \renewcommand{\arraystretch}{1.2}
-
   \pgfplotstableset {
   	column type=,
   	end table={\end{tabularx}},
   	col sep=comma,
-  	columns/Kategori/.style={},
-  	columns/Inntekt/.style={},
-  	columns/Formue/.style={},
-  	columns/Skatt/.style={},
-  	columns/Eiertype/.style={},
-  	columns/Antall/.style={},
-  	columns/Kjoenn/.style={column name=Kjønn},
-  	columns/Omraade/.style={column name=Område},
-  	columns/KvinneligeEiere/.style={column name=Kvinnelige eiere},
-  	columns/MannligeEiere/.style={column name=Mannlige eiere},
-  	columns/Kvinneandel/.style={},
   	string type,
   	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
   	every head row/.append style={
@@ -65,11 +65,9 @@ write_latex_main() {
       },
   	every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
   }
-
-  \title{Hvem eier Oslo by?}
-  \author{Digital Undersøkende Redaksjon, NRK}
+  \title{$DOCUMENT_TITLE}
+  \author{$DOCUMENT_AUTHOR}
   \begin{document}
-
   	\maketitle
   	\newpage
   	\tableofcontents
@@ -77,25 +75,25 @@ write_latex_main() {
   	\begin{flushleft}
   	\input{body.tex}
   	\end{flushleft}
-
   \end{document}
 EOF
 }
 
 prepare_queries() {
-  csplit --digits=2 --elide-empty-files --quiet --prefix="$TMPDIR/$FILETITLE." "$TARGET" "/\/\* END SECTION/+1" "{*}"; \
+  csplit --digits=2 --elide-empty-files --quiet --prefix="$TMPDIR/$FILETITLE." "$TARGET" "/\/\*\*/" "{*}"; \
 }
 
-write_latex_body() {
+build_latex_body() {
   for file in $(find "$TMPDIR" -name "$FILETITLE.*");
 		do
 			title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
 			latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
-			alignment="$(pcregrep -Mo '<ALIGN>\K((?s).)*?(?=</ALIGN>)' $file)"
+			alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
 			echo " ---> $title ($alignment)"
 			csvfile="$(basename $file).csv"
-			MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < $file | sed 's/,/\\char44/g' | sed 's/_/\\_/g' | sed 's/|/\\|/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$csvfile"
-			echo "\\begin{minipage}{\\textwidth}" > "$LATEX_BODY"
+			MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < $file | sed 's/,/\\char44\{\}/g' | sed 's/_/\\char95\{\}/g' | sed 's/|/\\char124\{\}/g'| sed 's/%/\\char37\{\}/g'| sed 's/ /\\:/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$csvfile"
+			echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY"
+      echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY"
 			echo "$latex" >> "$LATEX_BODY"
 			echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY"
 			printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}}]{%s}\n" \
@@ -112,7 +110,8 @@ pdf_from_latex() {
   ( cd $TMPDIR && pdflatex main.tex && pdflatex main.tex && mv main.pdf $OUTPUT )
 }
 
+load_config
 write_latex_main
 prepare_queries
-write_latex_body
+build_latex_body
 pdf_from_latex
