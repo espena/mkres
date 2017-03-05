@@ -84,7 +84,7 @@ prepare_queries() {
 }
 
 build_latex_body() {
-  for file in $(find "$TMPDIR" -name "$FILETITLE.*");
+  for file in $(find "$TMPDIR" -name "$FILETITLE.*" | sort);
 		do
 			title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
 			latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
