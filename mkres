@@ -107,7 +107,7 @@ build_latex_body() {
 }
 
 pdf_from_latex() {
-  ( cd $TMPDIR && pdflatex main.tex && pdflatex main.tex && mv main.pdf $OUTPUT )
+  ( cd "$TMPDIR" && pdflatex main.tex && pdflatex main.tex && mv main.pdf "$OUTPUT" )
 }
 
 load_config
