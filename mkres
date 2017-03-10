@@ -1,17 +1,14 @@
 #!/bin/bash
 
-
-FILETITLE="$1"
-TARGET="$PWD/$FILETITLE.sql"
-CONFIGFILE="$PWD/$FILETITLE.conf"
-OUTPUT="$PWD/$FILETITLE.pdf"
-TMPDIR="$(mktemp -d)"
-LATEX_MAIN="$TMPDIR/main.tex"
-LATEX_BODY="$TMPDIR/body.tex"
-
-ln -s -f $TMPDIR debug
-
 load_config() {
+  FILETITLE="$1"
+  TARGET="$PWD/$FILETITLE.sql"
+  CONFIGFILE="$PWD/$FILETITLE.conf"
+  OUTPUT="$PWD/$FILETITLE.pdf"
+  CURDIR="$PWD"
+  TMPDIR="$(mktemp -d)"
+  LATEX_MAIN="$TMPDIR/main.tex"
+  LATEX_BODY="$TMPDIR/body.tex"
   if [ ! -f "$CONFIGFILE" ]; then
     cat <<EOF > "$CONFIGFILE"
 DOCUMENT_LANGUAGE="english"
@@ -80,7 +77,7 @@ EOF
 }
 
 prepare_queries() {
-  csplit --digits=2 --elide-empty-files --quiet --prefix="$TMPDIR/$FILETITLE." "$TARGET" "/\/\*\*/" "{*}"; \
+  csplit --digits=2 --elide-empty-files --quiet --prefix="$TMPDIR/$FILETITLE." "$TARGET" "/\/\*\*/" "{*}"
 }
 
 build() {
@@ -90,14 +87,24 @@ build() {
   		title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
   		latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
   		alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
-  		echo " ---> $title ($alignment)"
   		csvfile="$(basename $file).csv"
+      if [[ ! $alignment =~ ^[Xlrc]+$ ]]; then
+        echo "Missing, bad or empty <COLS> tag for table \"$title\": \"$alignment\""
+        exit
+      fi
       if [ -f "$TMPDIR/$csvfile" ]; then
         # Do queries on second run
+        printf   " ---> \"$title\" ($alignment):: SQL"
         MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < $file | sed 's/,/\\char44\{\}/g' | sed 's/_/\\char95\{\}/g' | sed 's/|/\\char124\{\}/g'| sed 's/%/\\char37\{\}/g'| sed 's/ /\\:/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$csvfile"
+        printf "\r ---> \"$title\" ($alignment):: OK!\n"
       else
-        # No queries on first run, just create empty data files
+        # Dry-run queries first
+        echo "Checking $title ($alignment)"
         touch "$TMPDIR/$csvfile"
+        cat "$file" | tr "\n" "\f" | sed -e 's/\fSELECT/ EXPLAIN SELECT/g' | sed -e 's/UNION/;/g' | MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER > /dev/null
+        if [ ${PIPESTATUS[4]} -eq 1 ]; then
+          exit
+        fi
       fi
   		echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY"
       echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY"
@@ -111,10 +118,19 @@ build() {
   		echo "\\end{minipage}" >> "$LATEX_BODY"
   		echo "\\bigskip" >> "$LATEX_BODY"
   done
-  ( cd "$TMPDIR" && pdflatex main.tex )
+  cd "$TMPDIR"
+  pdflatex --halt-on-error "$LATEX_MAIN" > "$TMPDIR/pdflatex.log"
+  RES=$?
+  cd "$CURDIR"
+  if [ $RES -ne 0 ]; then
+    tail "$TMPDIR/pdflatex.log"
+    cp "$TMPDIR/pdflatex.log" "$PWD/pdflatex.log"
+    echo "See $PWD/pdflatex.log for details"
+    exit
+  fi
 }
 
-load_config
+load_config "$1"
 i=0
 # Run build process twice to generate TOC, and to catch LaTEX errors before
 # starting potentially time consuming SQL queries.
@@ -126,4 +142,4 @@ do
   i=`expr $i + 1`
 done
 mv "$TMPDIR/main.pdf" "$OUTPUT"
-rm -rf "$TMPDIR"
+#rm -rf "$TMPDIR"
