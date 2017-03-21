@@ -84,6 +84,7 @@ build() {
   echo "" > "$LATEX_BODY"
   for file in $(find "$TMPDIR" -name "$FILETITLE.*" -not -name "$FILETITLE.*.csv" | sort);
   	do
+      #iconv -f UTF-8 -t ISO-8859-1 -o "$file.new" "$file" && mv -f "$file.new" "$file"
       MD5=($(md5sum "$file"))
       CACHEDIR="/tmp/mkres_cache/$MD5"
       CACHEFILE_LATEX="$CACHEDIR/$(basename $file)"
@@ -102,7 +103,9 @@ build() {
         if [ -f "$TMPDIR/$CSVFILE" ]; then
           # Do queries on second run
           printf   " ---> \"$title\" ($alignment):: SQL"
-          MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < $file | sed 's/,/\\char44\{\}/g' | sed 's/_/\\char95\{\}/g' | sed 's/|/\\char124\{\}/g'| sed 's/%/\\char37\{\}/g'| sed 's/ /\\:/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$CSVFILE"
+          iconv -f UTF-8 -t ISO-8859-1 -o "$file.8859-1" "$file"
+          MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file.8859-1" | sed 's/,/\\char44\{\}/g' | sed 's/_/\\char95\{\}/g' | sed 's/|/\\char124\{\}/g'| sed 's/%/\\char37\{\}/g'| sed 's/ /\\:/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$CSVFILE"
+          rm -f "$file.8859-1"
           printf "\r ---> \"$title\" ($alignment):: OK!\n"
         else
           # Dry-run queries first
