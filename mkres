@@ -67,6 +67,7 @@ write_latex_main() {
   	end table={\end{tabularx}},
   	col sep=comma,
   	verb string type,
+    postproc cell content {},
   	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
   	every head row/.append style={
           typeset cell/.code={
