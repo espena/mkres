@@ -65,7 +65,7 @@ write_latex_main() {
   	column type=,
   	end table={\end{tabularx}},
   	col sep=comma,
-  	string type,
+  	verb string type,
   	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
   	every head row/.append style={
           typeset cell/.code={
