@@ -62,13 +62,10 @@ write_latex_main() {
   \usepackage[$DOCUMENT_LANGUAGE]{babel}
   \renewcommand{\arraystretch}{1.2}
   \pgfplotstableset {
+  	column type=,
   	end table={\end{tabularx}},
   	col sep=comma,
   	verb string type,
-    postproc cell content/.code={%
-      \pgfplotsutilstrreplace{_}{\_}{##1}%
-      \pgfkeyslet{/pgfplots/table/@cell content}\pgfplotsretval
-    },
   	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
   	every head row/.append style={
           typeset cell/.code={
