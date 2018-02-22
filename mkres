@@ -69,7 +69,7 @@ write_latex_main() {
   	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
   	every head row/.append style={
           typeset cell/.code={
-  			\ifnum\pgfplotstablecol=\pgfplotstablecols
+  			      \ifnum\pgfplotstablecol=\pgfplotstablecols
           			\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}\\\\}
           		\else
           			\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}&}
@@ -135,7 +135,7 @@ build() {
         echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
     		echo "$latex" >> "$LATEX_BODY_TMP"
     		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
-    		printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}}]{%s}\n" \
+    		printf "\\pgfplotstabletypeset[postproc cell content/.code={\\\\pgfplotsutilstrreplace{_}{\\_}{##1}\\\\pgfkeyslet{\\\\pgfplots/table/@cell content}\pgfplotsretval},begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}}]{%s}\n" \
     					 "$alignment" \
     					 "$CSVFILE" \
     					 >> "$LATEX_BODY_TMP"
