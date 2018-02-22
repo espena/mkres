@@ -136,7 +136,7 @@ build() {
         echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
     		echo "$latex" >> "$LATEX_BODY_TMP"
     		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
-    		printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={}]{%s}\n" \
+    		printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={\\\\pgfplotsutilstrreplace{_}{\\\\_}{##1}}]{%s}\n" \
     					 "$alignment" \
     					 "$CSVFILE" \
     					 >> "$LATEX_BODY_TMP"
