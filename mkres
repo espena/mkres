@@ -67,7 +67,6 @@ write_latex_main() {
   	end table={\end{tabularx}},
   	col sep=comma,
   	verb string type,
-    postproc cell content {},
   	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
   	every head row/.append style={
           typeset cell/.code={
@@ -137,7 +136,7 @@ build() {
         echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
     		echo "$latex" >> "$LATEX_BODY_TMP"
     		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
-    		printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}}]{%s}\n" \
+    		printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={}]{%s}\n" \
     					 "$alignment" \
     					 "$CSVFILE" \
     					 >> "$LATEX_BODY_TMP"
