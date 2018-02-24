@@ -77,8 +77,7 @@ write_latex_main() {
           		\fi
           	}
     },
-  	every last row/.style={ typeset cell/.code={\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{foo}}}},
-  	%every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
+  	every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
   }
   \title{$DOCUMENT_TITLE}
   \author{$DOCUMENT_AUTHOR}
