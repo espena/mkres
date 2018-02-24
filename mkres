@@ -77,7 +77,7 @@ write_latex_main() {
           		\fi
           	}
     },
-  	every head row/.append style={
+  	every column/.append style={
           typeset cell/.code={
             \pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{\underline{##1}}\\\\}
           }
