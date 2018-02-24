@@ -63,7 +63,7 @@ write_latex_main() {
   \renewcommand{\arraystretch}{1.2}
   \pgfplotstableset {
   	column type=,
-  	begin table={\begin{tabularx}\pgfkeys{/pgf/number format/sci}},
+  	begin table={\begin{tabularx}},
   	end table={\end{tabularx}},
   	col sep=tab,
   	verb string type,
@@ -76,7 +76,12 @@ write_latex_main() {
           			\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}&}
           		\fi
           	}
-      },
+    },
+  	every row/.append style={
+          typeset cell/.code={
+            \pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{\underline{##1}}\\\\}
+          }
+    },
   	every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
   }
   \title{$DOCUMENT_TITLE}
