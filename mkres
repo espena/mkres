@@ -61,9 +61,10 @@ write_latex_main() {
   \usepackage{placeins}
   \usepackage[$DOCUMENT_LANGUAGE]{babel}
   \renewcommand{\arraystretch}{1.2}
+  \pgfkeys{/pgf/number format/sci}
   \pgfplotstableset {
   	column type=,
-  	begin table={\begin{tabularx}\pgfkeys{/pgf/number format/sci}},
+  	begin table={\begin{tabularx}},
   	end table={\end{tabularx}},
   	col sep=tab,
   	verb string type,
