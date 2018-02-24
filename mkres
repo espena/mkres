@@ -77,11 +77,6 @@ write_latex_main() {
           		\fi
           	}
     },
-  	every column/.append style={
-          typeset cell/.code={
-            \pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{\underline{##1}}\\\\}
-          }
-    },
   	every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
   }
   \title{$DOCUMENT_TITLE}
