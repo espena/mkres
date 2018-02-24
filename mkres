@@ -63,7 +63,7 @@ write_latex_main() {
   \renewcommand{\arraystretch}{1.2}
   \pgfplotstableset {
   	column type=,
-  	begin table={\begin{tabularx}\pgfkeys{/pgf/number format/.cd,fixed relative,precision=2}},
+  	begin table={\begin{tabularx}\pgfkeys{/pgf/number format/sci}},
   	end table={\end{tabularx}},
   	col sep=tab,
   	verb string type,
