@@ -41,7 +41,7 @@ EOF
 
 write_latex_main() {
   cat <<EOF > "$LATEX_MAIN"
-  \documentclass[8pt,a4paper]{article}
+  \documentclass[6pt,a4paper]{article}
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
   \usepackage{amsmath}
