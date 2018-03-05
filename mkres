@@ -41,7 +41,7 @@ EOF
 
 write_latex_main() {
   cat <<EOF > "$LATEX_MAIN"
-  \documentclass[6pt,a4paper]{article}
+  \documentclass[8pt,a4paper]{article}
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
   \usepackage{amsmath}
@@ -137,7 +137,7 @@ build() {
         echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
     		echo "$latex" >> "$LATEX_BODY_TMP"
     		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
-    		printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={\\\\pgfplotsutilstrreplace{\\\\%%}{\\\\_}{}\\\\pgfplotsretval}]{%s}\n" \
+    		printf "\\pgfplotstabletypeset[font=8pt,begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={\\\\pgfplotsutilstrreplace{\\\\%%}{\\\\_}{}\\\\pgfplotsretval}]{%s}\n" \
     					 "$alignment" \
     					 "$CSVFILE" \
     					 >> "$LATEX_BODY_TMP"
