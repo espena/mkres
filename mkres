@@ -47,7 +47,6 @@ write_latex_main() {
   \usepackage{amsmath}
   \usepackage{amsfonts}
   \usepackage{amssymb}
-  \usepackage{lastpage}
   \usepackage{makeidx}
   \usepackage{graphicx}
   \usepackage{lmodern}
