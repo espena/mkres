@@ -86,7 +86,7 @@ write_latex_main() {
   	\maketitle
   	\newpage
   	\tableofcontents
-  	\newpage
+  	\clearpage
   	\begin{flushleft}
   	\input{body.tex}
   	\end{flushleft}
