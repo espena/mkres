@@ -83,10 +83,12 @@ write_latex_main() {
   \title{$DOCUMENT_TITLE}
   \author{$DOCUMENT_AUTHOR}
   \begin{document}
+    \pagenumbering{roman}
   	\maketitle
   	\newpage
   	\tableofcontents
-  	\clearpage
+  	\newpage
+    \pagenumbering{arabic}
   	\begin{flushleft}
   	\input{body.tex}
   	\end{flushleft}
