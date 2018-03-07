@@ -47,6 +47,7 @@ write_latex_main() {
   \usepackage{amsmath}
   \usepackage{amsfonts}
   \usepackage{amssymb}
+  \usepackage{lastpage}
   \usepackage{makeidx}
   \usepackage{graphicx}
   \usepackage{lmodern}
@@ -137,7 +138,7 @@ build() {
         echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
     		echo "$latex" >> "$LATEX_BODY_TMP"
     		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
-    		printf "\\pgfplotstabletypeset[font=\\\\footnotesize,begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={\\\\pgfplotsutilstrreplace{\\\\%%}{\\\\_}{}\\\\pgfplotsretval}]{%s}\n" \
+    		printf "\\pgfplotstabletypeset[font=8pt,begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={\\\\pgfplotsutilstrreplace{\\\\%%}{\\\\_}{}\\\\pgfplotsretval}]{%s}\n" \
     					 "$alignment" \
     					 "$CSVFILE" \
     					 >> "$LATEX_BODY_TMP"
