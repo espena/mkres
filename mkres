@@ -112,11 +112,11 @@ build() {
       CSVFILE="$(basename $file).csv"
       title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
       ploticus="$(pcregrep -Mo '<PLOTICUS>\K((?s).)*?(?=</PLOTICUS>)' $file)"
-
-      echo $ploticus
-      exit
-
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
+      if [[ -n $ploticus  ]]; then
+        echo "Generating Ploticus graphics ..."
+        exit
+      fi
       if [ ! -f "$CACHEFILE_CSV" ]; then
     		latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
         latexBelow="$(pcregrep -Mo '<LATEX_BELOW>\K((?s).)*?(?=</LATEX_BELOW>)' $file)"
