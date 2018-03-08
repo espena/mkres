@@ -113,9 +113,9 @@ build() {
       title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
       ploticus="$(pcregrep -Mo '<PLOTICUS>\K((?s).)*?(?=</PLOTICUS>)' $file)"
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
-      iconv -f UTF-8 -t ISO-8859-1 -o "$file.8859-1" "$file"
       if [[ -n $ploticus  ]]; then
         echo "Generating Ploticus graphics ..."
+        iconv -f UTF-8 -t ISO-8859-1 -o "$file.8859-1" "$file"
         MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file.8859-1" | $ploticus
       fi
       if [ ! -f "$CACHEFILE_CSV" ]; then
@@ -127,6 +127,7 @@ build() {
             printf   " ---> \"$title\" ($alignment):: SQL"
             # MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file.8859-1" | sed 's/,/\\char44\{\}/g' | sed 's/_/\\char95\{\}/g' | sed 's/|/\\char124\{\}/g'| sed 's/%/\\char37\{\}/g'| sed 's/ /\\:/g' | sed 's/\t/,/g' | iconv -f ISO-8859-1 -t UTF-8 >> "$TMPDIR/$CSVFILE"
             # vMYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file.8859-1" | sed 's/,/\,/g' | sed 's/_/\_/g' | sed 's/|/\|/g' | sed 's/\t/,/g' >> "$TMPDIR/$CSVFILE"
+            iconv -f UTF-8 -t ISO-8859-1 -o "$file.8859-1" "$file"
             MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file.8859-1" | sed 's/,/\,/g' | sed 's/_/\_/g' | sed 's/|/\|/g' >> "$TMPDIR/$CSVFILE"
             rm -f "$file.8859-1"
             printf "\r ---> \"$title\" ($alignment):: OK!\n"
