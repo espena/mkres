@@ -123,8 +123,9 @@ build() {
           fi
         else
           rm "ploticusfirstpass"
-          echo "Generating Ploticus graphics ..."
+          printf   " ---> \"$title\" (Ploticus graphics):: SQL"
           MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
+          printf   "\r ---> \"$title\" (Ploticus graphics):: OK!\n"
         fi
       fi
       if [ ! -f "$CACHEFILE_CSV" ]; then
