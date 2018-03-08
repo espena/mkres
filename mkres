@@ -115,8 +115,7 @@ build() {
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
       if [[ -n $ploticus  ]]; then
         echo "Generating Ploticus graphics ..."
-        iconv -f UTF-8 -t ISO-8859-1 -o "$file.8859-1" "$file"
-        MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file.8859-1" | $ploticus
+        MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
       fi
       if [ ! -f "$CACHEFILE_CSV" ]; then
     		latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
