@@ -96,7 +96,7 @@ EOF
 }
 
 prepare_queries() {
-  csplit --digits=2 --elide-empty-files --quiet --prefix="$TMPDIR/$FILETITLE." "$TARGET" "/\/\*\*/" "{*}"
+  csplit --digits=4 --elide-empty-files --quiet --prefix="$TMPDIR/$FILETITLE." "$TARGET" "/\/\*\*/" "{*}"
 }
 
 build() {
