@@ -111,6 +111,11 @@ build() {
       LATEX_BODY_TMP=$(mktemp)
       CSVFILE="$(basename $file).csv"
       title="$(pcregrep -Mo 'subsection\{\K((?s).)*?(?=\})' $file)"
+      ploticus="$(pcregrep -Mo '<PLOTICUS>\K((?s).)*?(?=</PLOTICUS>)' $file)"
+
+      echo $ploticus
+      exit
+
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
       if [ ! -f "$CACHEFILE_CSV" ]; then
     		latex="$(pcregrep -Mo '<LATEX>\K((?s).)*?(?=</LATEX>)' $file)"
