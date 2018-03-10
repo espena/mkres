@@ -124,8 +124,8 @@ build() {
           fi
         else
           rm ploticusfirstpass
+          printf   " ploticus command: $ploticus\n"
           printf   " ---> \"$title\" (Ploticus graphics):: SQL"
-          printf   "      ploticus command: $ploticus"
           MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
           printf   "\r ---> \"$title\" (Ploticus graphics):: OK!\n"
         fi
