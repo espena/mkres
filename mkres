@@ -111,6 +111,7 @@ build() {
       printf "Prosesserer $file ...\n"
       #iconv -f UTF-8 -t ISO-8859-1 -o "$file.new" "$file" && mv -f "$file.new" "$file"
       MD5=($(md5sum "$file"))
+      SELFDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
       CACHEDIR="/tmp/mkres_cache/$MD5"
       CACHEFILE_LATEX="$CACHEDIR/$(basename $file)"
       CACHEFILE_CSV="$CACHEFILE_LATEX.csv"
@@ -124,7 +125,7 @@ build() {
         if [[ $pass = "0" ]]; then
           # Dry-run queries first
           # Make sure gfx file exists - even if empty
-          cp -f 1px.png "$(echo "$ploticus" | grep -oP "(?<=\-o\s)[^\s]*")"
+          cp -f "$SELFDIR/1px.png" "$(echo "$ploticus" | grep -oP "(?<=\-o\s)[^\s]*")"
           cat "$file" | tr "\n" "\f" | sed -e 's/\fSELECT/ EXPLAIN SELECT/g' | sed -e 's/UNION/;/g' | MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER > /dev/null
           if [ ${PIPESTATUS[4]} -eq 1 ]; then
             exit
