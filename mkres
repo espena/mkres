@@ -107,6 +107,7 @@ build() {
   echo "" > "$LATEX_BODY"
   for file in $(find "$TMPDIR" -name "$FILETITLE.*" -not -name "$FILETITLE.*.csv" | sort);
   	do
+      printf "Prosesserer $file ...\n"
       #iconv -f UTF-8 -t ISO-8859-1 -o "$file.new" "$file" && mv -f "$file.new" "$file"
       MD5=($(md5sum "$file"))
       CACHEDIR="/tmp/mkres_cache/$MD5"
