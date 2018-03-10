@@ -125,7 +125,7 @@ build() {
         if [[ $pass = "0" ]]; then
           # Dry-run queries first
           # Make sure gfx file exists - even if empty
-          cp -f "$SELFDIR/1px.png" "$(echo "$ploticus" | grep -oP "(?<=\-o\s)[^\s]*")"
+          cp -f "$SELFDIR"1px.png "$(echo "$ploticus" | grep -oP "(?<=\-o\s)[^\s]*")"
           cat "$file" | tr "\n" "\f" | sed -e 's/\fSELECT/ EXPLAIN SELECT/g' | sed -e 's/UNION/;/g' | MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER > /dev/null
           if [ ${PIPESTATUS[4]} -eq 1 ]; then
             exit
