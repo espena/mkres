@@ -104,6 +104,7 @@ prepare_queries() {
 }
 
 build() {
+  pass="$1"
   echo "" > "$LATEX_BODY"
   for file in $(find "$TMPDIR" -name "$FILETITLE.*" -not -name "$FILETITLE.*.csv" | sort);
   	do
@@ -120,9 +121,17 @@ build() {
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
 
       if [[ -n $ploticus  ]]; then
-        printf   " ---> \"$title\" (Ploticus graphics):: SQL"
-        MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
-        printf   "\r ---> \"$title\" (Ploticus graphics):: OK!\n"
+        if [[ $pass = "0" ]]; then
+          # Dry-run queries first
+          cat "$file" | tr "\n" "\f" | sed -e 's/\fSELECT/ EXPLAIN SELECT/g' | sed -e 's/UNION/;/g' | MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER > /dev/null
+          if [ ${PIPESTATUS[4]} -eq 1 ]; then
+            exit
+          fi
+        else
+          printf   " ---> \"$title\" (Ploticus graphics):: SQL"
+          MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
+          printf   "\r ---> \"$title\" (Ploticus graphics):: OK!\n"
+        fi
       fi
 
       if [ ! -f "$CACHEFILE_CSV" ]; then
@@ -206,7 +215,7 @@ while [ "$i" -lt 2 ]
 do
   write_latex_main
   prepare_queries
-  build
+  build $i
   i=`expr $i + 1`
 done
 mv "$TMPDIR/main.pdf" "$OUTPUT"
