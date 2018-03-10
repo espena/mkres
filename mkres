@@ -30,6 +30,7 @@ load_config() {
 DOCUMENT_LANGUAGE="english"
 DOCUMENT_TITLE="My research report"
 DOCUMENT_AUTHOR="Espen Andersen"
+GDFONTPATH="/usr/share/fonts/truetype/freefont"
 MYSQL_HOST="mysql"
 MYSQL_PORT="3306"
 MYSQL_USER="root"
@@ -115,15 +116,16 @@ build() {
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
       if [[ -n $ploticus  ]]; then
         if [[ ! -f "ploticusfirstpass" ]]; then
-          touch "ploticusfirstpass"
+          touch ploticusfirstpass
           # Dry-run queries first
           cat "$file" | tr "\n" "\f" | sed -e 's/\fSELECT/ EXPLAIN SELECT/g' | sed -e 's/UNION/;/g' | MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER > /dev/null
           if [ ${PIPESTATUS[4]} -eq 1 ]; then
             exit
           fi
         else
-          rm "ploticusfirstpass"
+          rm ploticusfirstpass
           printf   " ---> \"$title\" (Ploticus graphics):: SQL"
+          prinft   "      ploticus command: $ploticus"
           MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
           printf   "\r ---> \"$title\" (Ploticus graphics):: OK!\n"
         fi
