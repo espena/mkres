@@ -120,7 +120,7 @@ build() {
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
 
       if [[ -n $ploticus  ]]; then
-        printf "-n ploticus for $file\n"
+        printf "test ploticus for $file\n"
         if [[ ! -f ploticusfirstpass ]]; then
           touch ploticusfirstpass
           # Dry-run queries first
