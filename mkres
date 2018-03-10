@@ -120,21 +120,9 @@ build() {
       alignment="$(pcregrep -Mo '<COLS>\K((?s).)*?(?=</COLS>)' $file)"
 
       if [[ -n $ploticus  ]]; then
-        printf "test ploticus for $file\n"
-        if [[ ! -f ploticusfirstpass ]]; then
-          touch ploticusfirstpass
-          # Dry-run queries first
-          cat "$file" | tr "\n" "\f" | sed -e 's/\fSELECT/ EXPLAIN SELECT/g' | sed -e 's/UNION/;/g' | MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER > /dev/null
-          if [ ${PIPESTATUS[4]} -eq 1 ]; then
-            exit
-          fi
-        else
-          rm ploticusfirstpass
-          printf   " ploticus command: $ploticus\n"
-          printf   " ---> \"$title\" (Ploticus graphics):: SQL"
-          MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
-          printf   "\r ---> \"$title\" (Ploticus graphics):: OK!\n"
-        fi
+        printf   " ---> \"$title\" (Ploticus graphics):: SQL"
+        MYSQL_PWD=$MYSQL_PASS mysql -h$MYSQL_HOST -u$MYSQL_USER < "$file" | $ploticus
+        printf   "\r ---> \"$title\" (Ploticus graphics):: OK!\n"
       fi
 
       if [ ! -f "$CACHEFILE_CSV" ]; then
