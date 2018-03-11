@@ -85,8 +85,10 @@ write_latex_main() {
   \begin{document}
     \pagenumbering{roman}
   	\maketitle
-  	\newpage
-  	\tableofcontents
+    \renewcommand*\contentsname{Table of Contents}
+    \clearpage
+    \setcounter{page}{1}
+    \tableofcontents
   	\newpage
     \pagenumbering{arabic}
   	\begin{flushleft}
@@ -213,12 +215,18 @@ build() {
 
 load_config "$1"
 i=0
-# Run build process twice to generate TOC, and to catch LaTEX errors before
+# Run build process four times to generate TOC, and to catch LaTEX errors before
 # starting potentially time consuming SQL queries.
 while [ "$i" -lt 2 ]
 do
   write_latex_main
   prepare_queries
+  build $i
+  i=`expr $i + 1`
+done
+i=2
+while [ "$i" -lt 4 ]
+do
   build $i
   i=`expr $i + 1`
 done
