@@ -230,5 +230,6 @@ do
   build $i
   i=`expr $i + 1`
 done
-mv "$TMPDIR/main.pdf" "$OUTPUT"
+if [ -z ${NO_TEX+x} ]; then mv "$TMPDIR/main.tex" "$OUTPUT.tex"; fi
+if [ -z ${NO_PDF+x} ]; then mv "$TMPDIR/main.pdf" "$OUTPUT.pdf"; fi
 #rm -rf "$TMPDIR"
