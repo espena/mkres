@@ -35,6 +35,9 @@ MYSQL_HOST="mysql"
 MYSQL_PORT="3306"
 MYSQL_USER="root"
 MYSQL_PASS="secret"
+TEX_NOARMOR=0
+NO_TEX=0
+NO_PDF=0
 EOF
   fi
   source "$CONFIGFILE"
@@ -230,11 +233,11 @@ do
   build $i
   i=`expr $i + 1`
 done
-if [ -z ${NO_TEX+x} ]; then
+if [ $NO_TEX = "0" ]; then
   echo '' > "$OUTPUT.tex"
-  if [ -z ${TEX_NOARMOR+x} ]; then sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
+  if [ $TEX_NOARMOR = "0" ]; then sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
   cat "$LATEX_BODY" >> "$OUTPUT.tex"
-  if [ -z ${TEX_NOARMOR+x} ]; then sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
+  if [ $TEX_NOARMOR = "0" ]; then sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
 fi
-if [ -z ${NO_PDF+x} ]; then mv "$TMPDIR/main.pdf" "$OUTPUT.pdf"; fi
+if [  $NO_PDF = "0" ]; then mv "$TMPDIR/main.pdf" "$OUTPUT.pdf"; fi
 #rm -rf "$TMPDIR"
