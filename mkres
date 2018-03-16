@@ -232,9 +232,9 @@ do
 done
 if [ -z ${NO_TEX+x} ]; then
   echo '' > "$OUTPUT.tex"
-  if [ -n ${TEX_NOARMOUR+x} ]; then sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
+  if [ -n ${TEX_NOARMOR+x} ]; then sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
   cat "$LATEX_BODY" >> "$OUTPUT.tex"
-  if [ -n ${TEX_NOARMOUR+x} ]; sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex" | sed '$ d' > "$OUTPUT.tex"; fi
+  if [ -n ${TEX_NOARMOR+x} ]; sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex" | sed '$ d' > "$OUTPUT.tex"; fi
 fi
 if [ -z ${NO_PDF+x} ]; then mv "$TMPDIR/main.pdf" "$OUTPUT.pdf"; fi
 #rm -rf "$TMPDIR"
