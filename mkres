@@ -20,7 +20,7 @@ load_config() {
   FILETITLE="$1"
   TARGET="$PWD/$FILETITLE.sql"
   CONFIGFILE="$PWD/$FILETITLE.conf"
-  OUTPUT="$PWD/$FILETITLE.pdf"
+  OUTPUT="$PWD/$FILETITLE"
   CURDIR="$PWD"
   TMPDIR="$(mktemp -d)"
   LATEX_MAIN="$TMPDIR/main.tex"
@@ -110,7 +110,7 @@ build() {
   echo "" > "$LATEX_BODY"
   for file in $(find "$TMPDIR" -name "$FILETITLE.*" -not -name "$FILETITLE.*.csv" | sort);
   	do
-      printf "Prosesserer $file ...\n"
+      printf "Behandler $file ...\n"
       #iconv -f UTF-8 -t ISO-8859-1 -o "$file.new" "$file" && mv -f "$file.new" "$file"
       MD5=($(md5sum "$file"))
       SELFDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -230,6 +230,10 @@ do
   build $i
   i=`expr $i + 1`
 done
-if [ -z ${NO_TEX+x} ]; then mv "$TMPDIR/main.tex" "$OUTPUT.tex"; fi
+if [ -z ${NO_TEX+x} ]; then
+  sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' > "$OUTPUT.tex"
+  cat "$LATEX_BODY" >> "$OUTPUT.tex"
+  sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex"
+fi
 if [ -z ${NO_PDF+x} ]; then mv "$TMPDIR/main.pdf" "$OUTPUT.pdf"; fi
 #rm -rf "$TMPDIR"
