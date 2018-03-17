@@ -20,12 +20,13 @@ load_config() {
   FILETITLE="$1"
   TARGET="$PWD/$FILETITLE.sql"
   CONFIGFILE="$PWD/$FILETITLE.conf"
+  DEFAULT_CONFIGFILE="$PWD/default.conf"
   OUTPUT="$PWD/$FILETITLE.pdf"
   CURDIR="$PWD"
   TMPDIR="$(mktemp -d)"
   LATEX_MAIN="$TMPDIR/main.tex"
   LATEX_BODY="$TMPDIR/body.tex"
-  if [ ! -f "$CONFIGFILE" ]; then
+  if [ ! -f "$CONFIGFILE" ] && [ ! -f "$DEFAULT_CONFIGFILE" ]; then
     cat <<EOF > "$CONFIGFILE"
 DOCUMENT_LANGUAGE="english"
 DOCUMENT_TITLE="My research report"
@@ -36,7 +37,11 @@ MYSQL_USER="root"
 MYSQL_PASS="secret"
 EOF
   fi
-  source "$CONFIGFILE"
+	if [ ! -f "$CONFIGFILE" ]; then
+		source "$DEFAULT_CONFIGFILE"
+	else
+		source "$CONFIGFILE"
+	fi
 }
 
 write_latex_main() {
