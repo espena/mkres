@@ -26,7 +26,7 @@ load_config() {
   TMPDIR="$(mktemp -d)"
   LATEX_MAIN="$TMPDIR/main.tex"
   LATEX_BODY="$TMPDIR/body.tex"
-  if [[ ! -f "$CONFIGFILE" ]] && [[ ! -f "$DEAFULT_CONFIGFILE" ]]; then
+  if [[ ! -f "$CONFIGFILE" ]] && [[ ! -f "$DEFAULT_CONFIGFILE" ]]; then
     cat <<EOF > "$CONFIGFILE"
 DOCUMENT_LANGUAGE="english"
 DOCUMENT_TITLE="My research report"
@@ -41,7 +41,7 @@ NO_TEX=0
 NO_PDF=0
 EOF
   fi
-  if [[ ! -f "$CONFIGFILE" ]] && [[ -f "$DEAFULT_CONFIGFILE" ]]; then
+  if [[ ! -f "$CONFIGFILE" ]] && [[ -f "$DEFAULT_CONFIGFILE" ]]; then
 		source "$DEFAULT_CONFIGFILE"
 	else
 		source "$CONFIGFILE"
