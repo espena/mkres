@@ -208,11 +208,6 @@ build() {
           cp "$CACHEFILE_CSV" "$TMPDIR/$CSVFILE"
           echo " ---> \"$title\" ($alignment):: OK! (Cached)"
         fi
-				echo "$CSVFILE"
-				exit
-				if [[ "$NO_TEX" = "0" ]]; then
-					cp "$TMPDIR/$CSVFILE" "$PWD/$CSVFILE"
-				fi
       fi
   done
   cd "$TMPDIR"
