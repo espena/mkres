@@ -243,7 +243,7 @@ do
   i=`expr $i + 1`
 done
 if [[ $NO_TEX = "0" ]]; then
-  echo '' > "$TEX_DESTINATION/$OUTPUT.tex"
+  echo '' > "$TEX_DESTINATION/$FILETITLE.tex"
   if [[ $TEX_NOARMOR = "0" ]]; then sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' >> "$TEX_DESTINATION/$FILETITLE.tex"; fi
   cat "$LATEX_BODY" >> "$TEX_DESTINATION/$FILETITLE.tex"
   if [[ $TEX_NOARMOR = "0" ]]; then sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex" | sed '$ d' >> "$TEX_DESTINATION/$FILETITLE.tex"; fi
