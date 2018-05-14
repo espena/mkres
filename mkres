@@ -173,14 +173,14 @@ build() {
 #      		echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY_TMP"
           echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
       		echo "$latex" >> "$LATEX_BODY_TMP"
-      		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
+#      		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
           echo "{\\footnotesize " >> "$LATEX_BODY_TMP"
           printf "\\pgfplotstabletypeset[begin table={\\\\begin{tabularx}{\\\\textwidth}{%s}},postproc cell content/.code={\\\\pgfplotsutilstrreplace{\\\\%%}{\\\\_}{}\\\\pgfplotsretval}]{%s}\n" \
       					 "$alignment" \
       					 "$CSVFILE" \
       					 >> "$LATEX_BODY_TMP"
           echo "}" >> "$LATEX_BODY_TMP"
-      		echo "\\FloatBarrier" >> "$LATEX_BODY_TMP"
+#      		echo "\\FloatBarrier" >> "$LATEX_BODY_TMP"
           echo "$latexBelow" >> "$LATEX_BODY_TMP"
           echo "\\bigskip" >> "$LATEX_BODY_TMP"
 #      		echo "\\end{minipage}" >> "$LATEX_BODY_TMP"
