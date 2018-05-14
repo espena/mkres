@@ -170,7 +170,7 @@ build() {
             rm -f "$file.8859-1"
             printf "\r ---> \"$title\" ($alignment):: OK!\n"
           fi
-      		echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY_TMP"
+#      		echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY_TMP"
           echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
       		echo "$latex" >> "$LATEX_BODY_TMP"
       		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
@@ -183,7 +183,7 @@ build() {
       		echo "\\FloatBarrier" >> "$LATEX_BODY_TMP"
           echo "$latexBelow" >> "$LATEX_BODY_TMP"
           echo "\\bigskip" >> "$LATEX_BODY_TMP"
-      		echo "\\end{minipage}" >> "$LATEX_BODY_TMP"
+#      		echo "\\end{minipage}" >> "$LATEX_BODY_TMP"
       		echo "\\bigskip" >> "$LATEX_BODY_TMP"
         else
       		echo "$latex" >> "$LATEX_BODY_TMP"
