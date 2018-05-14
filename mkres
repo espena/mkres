@@ -58,6 +58,7 @@ write_latex_main() {
   \usepackage{amsfonts}
   \usepackage{amssymb}
   \usepackage{makeidx}
+  \usepackage[bottom]{footmisc}
   \usepackage{graphicx}
   \usepackage{lmodern}
   \usepackage{parskip}
