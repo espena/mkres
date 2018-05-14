@@ -20,12 +20,13 @@ load_config() {
   FILETITLE="$1"
   TARGET="$PWD/$FILETITLE.sql"
   CONFIGFILE="$PWD/$FILETITLE.conf"
+  DEFAULT_CONFIGFILE="$PWD/default.conf"
   OUTPUT="$PWD/$FILETITLE"
   CURDIR="$PWD"
   TMPDIR="$(mktemp -d)"
   LATEX_MAIN="$TMPDIR/main.tex"
   LATEX_BODY="$TMPDIR/body.tex"
-  if [ ! -f "$CONFIGFILE" ]; then
+  if [[ ! -f "$CONFIGFILE" ]] && [[ ! -f "$DEFAULT_CONFIGFILE" ]]; then
     cat <<EOF > "$CONFIGFILE"
 DOCUMENT_LANGUAGE="english"
 DOCUMENT_TITLE="My research report"
@@ -36,11 +37,16 @@ MYSQL_PORT="3306"
 MYSQL_USER="root"
 MYSQL_PASS="secret"
 TEX_NOARMOR=0
+TEX_DESTINATION=.
 NO_TEX=0
 NO_PDF=0
 EOF
   fi
-  source "$CONFIGFILE"
+  if [[ ! -f "$CONFIGFILE" ]] && [[ -f "$DEFAULT_CONFIGFILE" ]]; then
+		source "$DEFAULT_CONFIGFILE"
+	else
+		source "$CONFIGFILE"
+	fi
 }
 
 write_latex_main() {
@@ -200,7 +206,10 @@ build() {
           echo " ---> \"$title\" ($alignment):: OK! (Cached)"
         fi
       fi
-  done
+			if [ -f "$TMPDIR/$CSVFILE" ]; then
+				cp "$TMPDIR/$CSVFILE" "$TEX_DESTINATION/$CSVFILE"
+			fi
+	done
   cd "$TMPDIR"
   pdflatex --halt-on-error "$LATEX_MAIN" > "$TMPDIR/pdflatex.log"
   RES=$?
@@ -230,10 +239,10 @@ do
   i=`expr $i + 1`
 done
 if [[ $NO_TEX = "0" ]]; then
-  echo '' > "$OUTPUT.tex"
-  if [[ $TEX_NOARMOR = "0" ]]; then sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
-  cat "$LATEX_BODY" >> "$OUTPUT.tex"
-  if [[ $TEX_NOARMOR = "0" ]]; then sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex" | sed '$ d' >> "$OUTPUT.tex"; fi
+  echo '' > "$TEX_DESTINATION/$FILETITLE.tex"
+  if [[ $TEX_NOARMOR = "0" ]]; then sed '/\\input/q' "$TMPDIR/main.tex" | sed '$ d' >> "$TEX_DESTINATION/$FILETITLE.tex"; fi
+  cat "$LATEX_BODY" >> "$TEX_DESTINATION/$FILETITLE.tex"
+  if [[ $TEX_NOARMOR = "0" ]]; then sed -e '1,/\\input/d' "$TMPDIR/main.tex" >> "$OUTPUT.tex" | sed '$ d' >> "$TEX_DESTINATION/$FILETITLE.tex"; fi
 fi
 if [[  $NO_PDF = "0" ]]; then mv "$TMPDIR/main.pdf" "$OUTPUT.pdf"; fi
 #rm -rf "$TMPDIR"
