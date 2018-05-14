@@ -180,14 +180,10 @@ build() {
       		echo "\\end{minipage}" >> "$LATEX_BODY_TMP"
       		echo "\\bigskip" >> "$LATEX_BODY_TMP"
         else
-          echo "\\begin{minipage}{\\textwidth}" >> "$LATEX_BODY_TMP"
-          echo "\\setlength{\\parskip}{\\baselineskip}" >> "$LATEX_BODY_TMP"
       		echo "$latex" >> "$LATEX_BODY_TMP"
       		echo "\\medskip\\FloatBarrier" >> "$LATEX_BODY_TMP"
           echo "$latexBelow" >> "$LATEX_BODY_TMP"
           echo "\\bigskip" >> "$LATEX_BODY_TMP"
-      		echo "\\end{minipage}" >> "$LATEX_BODY_TMP"
-      		echo "\\bigskip" >> "$LATEX_BODY_TMP"
         fi
         cat "$LATEX_BODY_TMP" >> "$LATEX_BODY"
         if [ -f "$TMPDIR/$CSVFILE" ]; then
