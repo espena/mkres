@@ -12,8 +12,7 @@ import argparse
 import os
 import re
 import tempfile
-
-from mysql.connector import MySQLConnection, Error
+import mysql.connector
 
 __version__ = '0.0.1'
 
@@ -671,6 +670,14 @@ def parse_part( part ):
     statements = re.compile( r'\/\*.*?\*\/', re.MULTILINE | re.DOTALL ).sub( '', part ).replace( '\n', ' ' ).replace( '\r', ' ' ).split( ';' )
     statements = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), statements ) ) )
 
+    m = re.compile( r'.*<CONFIG>([^<]+)</CONFIG>.*', re.MULTILINE | re.DOTALL ).match( part )
+    if m is not None:
+        config = str( m.groups( 1 )[ 0 ] ).split( '\n' )
+        config = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), config ) ) )
+        config = { k : v for k, v in ( param.split( '=' ) for param in config ) }
+    else:
+        config = None
+
     m = re.compile( r'.*<LATEX>([^<]+)</LATEX>.*', re.MULTILINE | re.DOTALL ).match( part )
     latex = m.groups( 1 )[ 0 ] if m is not None else None
 
@@ -684,6 +691,7 @@ def parse_part( part ):
     wordcloud = m.groups( 1 )[ 0 ] if m is not None else None
 
     return {
+        'config': config,
         'statements': statements,
         'latex': latex,
         'cols': cols,
@@ -693,18 +701,33 @@ def parse_part( part ):
 def parse_file( filename ):
 
     delimiter = '/**'
-
     with open( filename, 'r' ) as inputfile:
         input = [ delimiter + chunk for chunk in inputfile.read().split( delimiter ) if chunk ]
 
-    for part in input:
-        p = parse_part( part )
-        try:
-            conn = MySQLConnection( { 'password': 'cicero', 'host': '172.17.0.2', 'user': 'root', 'database': 'refusjoner' } )
-        except Error as e:
-            print( e )
-        finally:
-            conn.close()
+    try:
+
+        for part in input:
+
+            p = parse_part( part )
+
+            if p[ 'config' ] is not None:
+                cnx = mysql.connector.connect( **p[ 'config' ] )
+                cur = cnx.cursor( buffered = True )
+
+            for statement in p.get( 'statements' ):
+                cur.execute( statement )
+                if cur.rowcount > 0:
+                    res = cur.fetchall()
+                    print( res )
+
+    except mysql.connector.Error as err:
+
+        print( 'Something went wrong: {}'.format( err ) )
+
+    finally:
+
+        if cnx: cnx.close()
+        if cur: cur.close()
 
 def command_line_runner():
 
