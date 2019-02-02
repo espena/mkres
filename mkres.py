@@ -9,10 +9,13 @@ This is free software, and you are welcome to redistribute it
 under certain conditions."""
 
 import argparse
+import csv
 import os
 import re
 import tempfile
 import mysql.connector
+
+from string import Template
 
 __version__ = '0.0.1'
 
@@ -701,24 +704,45 @@ def parse_part( part ):
 def parse_file( filename ):
 
     delimiter = '/**'
+    parts = []
     with open( filename, 'r' ) as inputfile:
         input = [ delimiter + chunk for chunk in inputfile.read().split( delimiter ) if chunk ]
 
     try:
 
-        for part in input:
+        for i, part in enumerate( input ):
 
             p = parse_part( part )
 
             if p[ 'config' ] is not None:
-                cnx = mysql.connector.connect( **p[ 'config' ] )
+
+                c = p[ 'config' ]
+                cnx = mysql.connector.connect(
+                    user = c[ 'user' ],
+                    password = c[ 'password' ],
+                    host = c[ 'host' ],
+                    port = c[ 'port' ],
+                    database = c[ 'database' ] )
                 cur = cnx.cursor( buffered = True )
 
+            tmpdir = tempfile.mkdtemp()
+
             for statement in p.get( 'statements' ):
+
                 cur.execute( statement )
-                if cur.rowcount > 0:
-                    res = cur.fetchall()
-                    print( res )
+
+                if cur.rowcount == 0: continue
+
+                hdr = [ i[ 0 ] for i in cur.description ]
+                res = cur.fetchall()
+                p[ 'datafile' ] = os.path.join( tmpdir, 'mkresdata_%04d.csv' % i )
+
+                with open( p[ 'datafile' ], 'w' ) as datafile:
+                    wrt = csv.writer( datafile, delimiter = '\t', lineterminator = '\n' )
+                    wrt.writerow( hdr )
+                    wrt.writerows( res )
+
+            parts.append( p )
 
     except mysql.connector.Error as err:
 
@@ -729,13 +753,28 @@ def parse_file( filename ):
         if cnx: cnx.close()
         if cur: cur.close()
 
+    return parts
+
+def build_latex( parts ):
+    texdir = tempfile.mkdtemp()
+    main_tex = os.path.join( texdir, 'main.tex' )
+
+    # TODO Create LaTeX code templates and output generation
+
+    with open( main_tex, 'w' ) as texfile:
+        texfile.write( '' )
+
+    return main_tex
+
 def command_line_runner():
 
     argparser = get_argparser()
     args = argparser.parse_args()
 
     if os.path.isfile( args.INPUT ):
-        parse_file( args.INPUT )
+        parts = parse_file( args.INPUT )
+        tex = build_latex( parts )
+        print( tex )
     else:
         print( 'File not found' )
 
