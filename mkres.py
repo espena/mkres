@@ -10,8 +10,12 @@ under certain conditions."""
 
 import argparse
 import csv
+import matplotlib.pyplot
+import numpy
 import os
+import pandas
 import re
+import seaborn
 import sys
 import tempfile
 import mysql.connector
@@ -20,7 +24,6 @@ from string import Template
 from latex import build_pdf
 
 __version__ = '0.0.1'
-
 __license__ = 'GPL v3'
 
 class LicenseWriter( argparse.Action ):
@@ -674,18 +677,19 @@ def get_argparser():
 
     return parser
 
+
+def parse_parameters( str ):
+    config = str.split( '\n' )
+    config = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), config ) ) )
+    return { k.strip() : v.strip() for k, v in ( param.split( '=' ) for param in config ) }
+
 def parse_part( part ):
 
     statements = re.compile( r'\/\*.*?\*\/', re.MULTILINE | re.DOTALL ).sub( '', part ).replace( '\n', ' ' ).replace( '\r', ' ' ).split( ';' )
     statements = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), statements ) ) )
 
     m = re.compile( r'.*<CONFIG>([^<]+)</CONFIG>.*', re.MULTILINE | re.DOTALL ).match( part )
-    if m is not None:
-        config = str( m.groups( 1 )[ 0 ] ).split( '\n' )
-        config = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), config ) ) )
-        config = { k : v for k, v in ( param.split( '=' ) for param in config ) }
-    else:
-        config = None
+    config = parse_parameters( str( m.groups( 1 )[ 0 ] ) ) if m is not None else None
 
     m = re.compile( r'.*<LATEX>([^<]+)</LATEX>.*', re.MULTILINE | re.DOTALL ).match( part )
     latex = m.groups( 1 )[ 0 ] if m is not None else None
@@ -693,8 +697,8 @@ def parse_part( part ):
     m = re.compile( r'.*<COLS>([^<]+)</COLS>.*', re.MULTILINE | re.DOTALL ).match( part )
     cols = m.groups( 1 )[ 0 ] if m is not None else None
 
-    m = re.compile( r'.*<PLOTICUS>([^<]+)</PLOTICUS>.*', re.MULTILINE | re.DOTALL ).match( part )
-    ploticus = m.groups( 1 )[ 0 ] if m is not None else None
+    m = re.compile( r'.*<SEABORN>([^<]+)</SEABORN>.*', re.MULTILINE | re.DOTALL ).match( part )
+    seaborn = parse_parameters( str( m.groups( 1 )[ 0 ] ) ) if m is not None else None
 
     m = re.compile( r'.*<WORDCLOUD>([^<]+)</WORDCLOUD>.*', re.MULTILINE | re.DOTALL ).match( part )
     wordcloud = m.groups( 1 )[ 0 ] if m is not None else None
@@ -704,32 +708,37 @@ def parse_part( part ):
         'statements': statements,
         'latex': latex,
         'cols': cols,
-        'ploticus': ploticus,
+        'seaborn': seaborn,
         'wordcloud': wordcloud }
 
 def parse_file( filename ):
 
     delimiter = '/**'
     parts = []
+
     with open( filename, 'r' ) as inputfile:
         input = [ delimiter + chunk for chunk in inputfile.read().split( delimiter ) if chunk ]
 
-    try:
+    cnx, cur = None, None
 
+    try:
         for i, part in enumerate( input ):
 
             p = parse_part( part )
 
-            if p[ 'config' ] is not None:
+            if p[ 'config' ] is None:
+                raise ValueError( 'There\'s no <CONFIG> block in your source file.' )
 
-                c = p[ 'config' ]
-                cnx = mysql.connector.connect(
-                    user = c[ 'user' ],
-                    password = c[ 'password' ],
-                    host = c[ 'host' ],
-                    port = c[ 'port' ],
-                    database = c[ 'database' ] )
-                cur = cnx.cursor( buffered = True )
+            c = p[ 'config' ]
+
+            cnx = mysql.connector.connect(
+                user = c[ 'user' ],
+                password = c[ 'password' ],
+                host = c[ 'host' ],
+                port = c[ 'port' ],
+                database = c[ 'database' ] )
+
+            cur = cnx.cursor( buffered = True )
 
             tmpdir = tempfile.mkdtemp()
 
@@ -751,13 +760,16 @@ def parse_file( filename ):
             parts.append( p )
 
     except mysql.connector.Error as err:
+        print( 'Cound not connect to database' )
+        raise
 
-        print( 'Something went wrong: {}'.format( err ) )
+    except ValueError as err:
+        print( 'Ivalid or missing parameter' )
+        raise
 
     finally:
-
-        if cnx: cnx.close()
-        if cur: cur.close()
+        if cur is not None: cur.close()
+        if cnx is not None: cnx.close()
 
     return parts
 
@@ -765,6 +777,18 @@ def build_table( part ):
     return r'''\pgfplotstabletypeset[begin table={\begin{tabularx}{\textwidth}{%(cols)s}}]{%(datafile)s}\FloatBarrier\bigskip''' % part
 
 def build_graphics( part ):
+    config = part[ 'seaborn' ]
+    dataset = pandas.read_csv( part[ 'datafile' ], index_col = config['index_col'] if 'index_col' in config else None )
+    seaborn.set( style = config['style'] if 'style' in config else 'whitegrid' )
+    f, ax = matplotlib.pyplot.subplots( figsize = ( config[ 'width' ] if 'width' in config else 10, config[ 'height' ] if 'height' in config else 7 ) )
+    seaborn.set_color_codes( config['color_codes'] if 'color_codes' in config else 'pastel' )
+
+    seaborn.barplot( x = config['x'] if 'x' in config else None,
+                     y = config['x'] if 'x' in config else None,
+                     data = dataset,
+                     label = config['x'] if 'x' in config else '',
+                     color = config['color'] if 'color' in config else 'b' )
+
     return r'\emph{Her kommer grafikken!}'
 
 def build_latex_body( parts ):
@@ -776,7 +800,7 @@ def build_latex_body( parts ):
     \FloatBarrier''' % part
         if part[ 'cols' ] is not None:
             body += build_table( part )
-        if part[ 'ploticus' ] is not None:
+        if part[ 'seaborn' ] is not None:
             body += build_graphics( part )
         body += r'''
 \end{minipage}
@@ -856,29 +880,37 @@ def build_latex( parts ):
 
 def command_line_runner():
 
-    argparser = get_argparser()
-    args = argparser.parse_args()
 
-    if os.path.isfile( args.INPUT ):
+    try:
 
-        parts = parse_file( args.INPUT )
-        config = parts[ 0 ][ 'config' ]
-        texfile = build_latex( parts )
+        argparser = get_argparser()
+        args = argparser.parse_args()
 
-        with open( texfile ) as tex_fp:
-            pdf = build_pdf( tex_fp )
+        if os.path.isfile( args.INPUT ):
 
-        pdffile = mkfilename( config[ 'outputfile' ] ) if 'outputfile' in config else os.path.basename( args.INPUT )
+            parts = parse_file( args.INPUT )
+            config = parts[ 0 ][ 'config' ]
+            texfile = build_latex( parts )
 
-        if os.path.splitext( pdffile )[ 1 ][ 1: ] == 'sql':
-            pdffile = os.path.splitext( pdffile )[ 0 ] + '.pdf'
-        elif os.path.splitext( pdffile )[ 1 ][ 1: ] != 'pdf':
-            pdffile += '.pdf'
+            with open( texfile ) as tex_fp:
+                pdf = build_pdf( tex_fp )
 
-        pdf.save_to( pdffile )
+            pdffile = mkfilename( config[ 'outputfile' ] ) if 'outputfile' in config else os.path.basename( args.INPUT )
 
-    else:
-        print( 'File not found' )
+            ext = os.path.splitext( pdffile )[ 1 ][ 1: ]
+            if ext == 'sql':
+                pdffile = os.path.splitext( pdffile )[ 0 ] + '.pdf'
+            elif ext != 'pdf':
+                pdffile += '.pdf'
+
+            pdf.save_to( pdffile )
+
+        else:
+            print( 'File not found' )
+
+    except Exception as err:
+        print( err )
+        sys.exit( 1 )
 
 if __name__ == '__main__':
     command_line_runner()
