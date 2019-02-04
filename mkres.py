@@ -12,10 +12,12 @@ import argparse
 import csv
 import os
 import re
+import sys
 import tempfile
 import mysql.connector
 
 from string import Template
+from latex import build_pdf
 
 __version__ = '0.0.1'
 
@@ -653,6 +655,10 @@ copy of the Program in return for a fee.
         print( self.__license_text )
         parser.exit()
 
+def mkfilename( str ):
+    valid = frozenset( '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' )
+    return ''.join( c for c in str if c in valid )
+
 def get_argparser():
 
     parser = argparse.ArgumentParser(
@@ -755,16 +761,98 @@ def parse_file( filename ):
 
     return parts
 
+def build_table( part ):
+    return r'''\pgfplotstabletypeset[begin table={\begin{tabularx}{\textwidth}{%(cols)s}}]{%(datafile)s}\FloatBarrier\bigskip''' % part
+
+def build_graphics( part ):
+    return r'\emph{Her kommer grafikken!}'
+
+def build_latex_body( parts ):
+    body = ''
+    for part in parts:
+        body += r'''
+\begin{minipage}{\textwidth}
+    \setlength{\parskip}{\baselineskip}%(latex)s\medskip
+    \FloatBarrier''' % part
+        if part[ 'cols' ] is not None:
+            body += build_table( part )
+        if part[ 'ploticus' ] is not None:
+            body += build_graphics( part )
+        body += r'''
+\end{minipage}
+\bigskip'''
+    return body
+
 def build_latex( parts ):
+
     texdir = tempfile.mkdtemp()
-    main_tex = os.path.join( texdir, 'main.tex' )
+    config = parts[ 0 ][ 'config' ]
+    config[ 'texmain' ] = os.path.join( texdir, 'main.tex' )
+    config[ 'texbody' ] = os.path.join( texdir, 'body.tex' )
 
-    # TODO Create LaTeX code templates and output generation
+    try:
 
-    with open( main_tex, 'w' ) as texfile:
-        texfile.write( '' )
+        wrapper = r'''\documentclass[10pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{makeidx}
+\usepackage{graphicx}
+\usepackage{lmodern}
+\usepackage{parskip}
+\usepackage{kpfonts}
+\usepackage[left=2.5cm,right=2.5cm,top=2.5cm,bottom=3cm]{geometry}
+\usepackage{pgfplotstable}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{placeins}
+\usepackage[%(language)s]{babel}
+\renewcommand{\arraystretch}{1.2}
+\pgfplotsset{compat=1.13}
+\pgfplotstableset {
+	column type=,
+	end table={\end{tabularx}},
+	col sep=comma,
+	string type,
+	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
+	every head row/.append style={
+      typeset cell/.code={
+			\ifnum\pgfplotstablecol=\pgfplotstablecols
+      			\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}\\\\}
+      		\else
+      			\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}&}
+      		\fi
+      	}
+  },
+	every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
+}
+\title{%(document_title)s}
+\author{%(document_author)s}
+\begin{document}
+	\maketitle
+	\newpage
+	\tableofcontents
+	\newpage
+	\begin{flushleft}
+	\input{%(texbody)s}
+	\end{flushleft}
+\end{document}''' % config
 
-    return main_tex
+    except KeyError as e:
+        print( 'Configuration parameter %s is missing from the input file' % e )
+        sys.exit( 1 )
+
+    with open( config[ 'texmain' ], 'w' ) as input:
+        input.write( wrapper )
+
+    with open( config[ 'texbody' ], 'w' ) as input:
+        input.write( build_latex_body( parts ) )
+
+    return config[ 'texmain' ]
 
 def command_line_runner():
 
@@ -772,9 +860,23 @@ def command_line_runner():
     args = argparser.parse_args()
 
     if os.path.isfile( args.INPUT ):
+
         parts = parse_file( args.INPUT )
-        tex = build_latex( parts )
-        print( tex )
+        config = parts[ 0 ][ 'config' ]
+        texfile = build_latex( parts )
+
+        with open( texfile ) as tex_fp:
+            pdf = build_pdf( tex_fp )
+
+        pdffile = mkfilename( config[ 'outputfile' ] ) if 'outputfile' in config else os.path.basename( args.INPUT )
+
+        if os.path.splitext( pdffile )[ 1 ][ 1: ] == 'sql':
+            pdffile = os.path.splitext( pdffile )[ 0 ] + '.pdf'
+        elif os.path.splitext( pdffile )[ 1 ][ 1: ] != 'pdf':
+            pdffile += '.pdf'
+
+        pdf.save_to( pdffile )
+
     else:
         print( 'File not found' )
 
