@@ -31,6 +31,7 @@ __license__ = 'GPL v3'
 class LicenseWriter( argparse.Action ):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
+
         self.__license_text = '''\
 
         GNU GENERAL PUBLIC LICENSE
@@ -661,6 +662,7 @@ copy of the Program in return for a fee.
         parser.exit()
 
 def mkfilename( str ):
+
     valid = frozenset( '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' )
     return ''.join( c for c in str if c in valid )
 
@@ -681,6 +683,7 @@ def get_argparser():
 
 
 def parse_parameters( str ):
+
     config = str.split( '\n' )
     config = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), config ) ) )
     return { k.strip() : v.strip() for k, v in ( param.split( '=' ) for param in config ) }
@@ -776,6 +779,7 @@ def parse_file( filename ):
     return parts
 
 def build_table( part ):
+
     return r'''\pgfplotstabletypeset[begin table={\begin{tabularx}{\textwidth}{%(cols)s}}]{%(datafile)s}\FloatBarrier\bigskip''' % part
 
 def match_args( func, config ):
@@ -788,13 +792,11 @@ def match_args( func, config ):
 
     return actual_args
 
-def as_bool( config, key ):
-    return True if ( config[ key ].lower() if key in config else 'false' ) == 'true' else False
+def as_bool( config, key, default = 'false' ):
 
-def build_graphics_barplot( part, dataset ):
+    return True if ( config[ key ].lower() if key in config else default.lower() ) == 'true' else False
 
-    config = part[ 'seaborn' ]
-    config[ 'data' ] = dataset
+def build_graphics_barplot( part, config ):
 
     args = match_args( matplotlib.pyplot.subplots, config )
     args[ 'figsize' ] = ( int( config[ 'width' ] ) if 'width' in config else 10, int( config[ 'height' ] ) if 'height' in config else 7 )
@@ -806,16 +808,19 @@ def build_graphics_barplot( part, dataset ):
 
     ax.set( ylabel = config[ 'ylabel' ] if 'ylabel' in config else '', xlabel = config[ 'xlabel' ] if 'xlabel' in config else ''  )
 
-    if as_bool( config, 'legend' ):
+    if as_bool( config, 'legend', 'false' ):
         frameon = as_bool( config, 'frameon' )
         ax.legend( ncol = 10, loc = 'lower right', frameon = frameon )
+
+    if as_bool( config, 'despine', 'true' ):
+        seaborn.despine( left = True, bottom = True )
 
 def build_graphics( part ):
 
     config = part[ 'seaborn' ]
-    chart_type = config[ 'chart_type' ] if 'chart_type' in config else 'barplot'
+    config[ 'data' ] = pandas.read_csv( part[ 'datafile' ], sep = '\t', dtype = None, encoding = 'utf-8' )
 
-    dataset = pandas.read_csv( part[ 'datafile' ], sep = '\t', dtype = None, encoding = 'utf-8' )
+    chart_type = config[ 'chart_type' ] if 'chart_type' in config else 'barplot'
 
     seaborn.set( style = config['style'] if 'style' in config else 'whitegrid' )
     seaborn.set_color_codes( config['color_codes'] if 'color_codes' in config else 'pastel' )
@@ -823,12 +828,10 @@ def build_graphics( part ):
     plot = None
 
     try:
-        globals()[ 'build_graphics_%s' % chart_type ] ( part, dataset )
+        globals()[ 'build_graphics_%s' % chart_type ] ( part, config )
 
     except KeyError as err:
         raise AttributeError( 'Wrong or missing attribute for chart type \'%s\'' % chart_type ) from err
-
-    seaborn.despine( left = True, bottom = True )
 
     matplotlib.pyplot.savefig( 'plot.png', dpi = int( config[ 'dpi' ] ) if 'dpi' in config else 400 )
 
