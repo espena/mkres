@@ -20,8 +20,9 @@ import sys
 import tempfile
 import mysql.connector
 
-from string import Template
+from collections import defaultdict
 from latex import build_pdf
+from string import Template
 
 __version__ = '0.0.1'
 __license__ = 'GPL v3'
@@ -716,7 +717,7 @@ def parse_file( filename ):
     delimiter = '/**'
     parts = []
 
-    with open( filename, 'r' ) as inputfile:
+    with open( filename, 'r', encoding='utf-8' ) as inputfile:
         input = [ delimiter + chunk for chunk in inputfile.read().split( delimiter ) if chunk ]
 
     cnx, cur = None, None
@@ -776,18 +777,43 @@ def parse_file( filename ):
 def build_table( part ):
     return r'''\pgfplotstabletypeset[begin table={\begin{tabularx}{\textwidth}{%(cols)s}}]{%(datafile)s}\FloatBarrier\bigskip''' % part
 
-def build_graphics( part ):
+def build_graphics_barplot( part, dataset ):
+
     config = part[ 'seaborn' ]
-    dataset = pandas.read_csv( part[ 'datafile' ], index_col = config['index_col'] if 'index_col' in config else None )
+    seaborn.barplot( x = config['x'] if 'x' in config else None,
+                      y = config['y'] if 'y' in config else None,
+                      data = dataset,
+                      label = config['label'] if 'label' in config else '',
+                      color = config['color'] if 'color' in config else 'b' )
+
+    print( 'Here comes the bar chart...' )
+
+def build_graphics( part ):
+
+    config = part[ 'seaborn' ]
+    chart_type = config[ 'chart_type' ] if 'chart_type' in config else 'barplot'
+
+    dataset = pandas.read_csv( part[ 'datafile' ], sep = '\t', dtype = None, encoding = 'utf-8' )
+
     seaborn.set( style = config['style'] if 'style' in config else 'whitegrid' )
-    f, ax = matplotlib.pyplot.subplots( figsize = ( config[ 'width' ] if 'width' in config else 10, config[ 'height' ] if 'height' in config else 7 ) )
     seaborn.set_color_codes( config['color_codes'] if 'color_codes' in config else 'pastel' )
 
-    seaborn.barplot( x = config['x'] if 'x' in config else None,
-                     y = config['x'] if 'x' in config else None,
-                     data = dataset,
-                     label = config['x'] if 'x' in config else '',
-                     color = config['color'] if 'color' in config else 'b' )
+    f, ax = matplotlib.pyplot.subplots( figsize = ( int( config[ 'width' ] ) if 'width' in config else 10, int( config[ 'height' ] ) if 'height' in config else 7 ) )
+
+    plot = None
+
+    try:
+        globals()[ 'build_graphics_%s' % chart_type ] ( part, dataset )
+
+    except KeyError as err:
+        raise AttributeError( 'No initializer exists for chart type \'%s\'' % chart_type ) from err
+
+    ax.legend( ncol = 2, loc = 'lower right', frameon = True )
+    ax.set( ylabel = config[ 'ylabel' ] if 'ylabel' in config else '', xlabel = config[ 'xlabel' ] if 'xlabel' in config else '' )
+
+    seaborn.despine( left = True, bottom = True )
+
+    matplotlib.pyplot.savefig( 'plot.png', dpi = 400 )
 
     return r'\emph{Her kommer grafikken!}'
 
@@ -815,7 +841,6 @@ def build_latex( parts ):
     config[ 'texbody' ] = os.path.join( texdir, 'body.tex' )
 
     try:
-
         wrapper = r'''\documentclass[10pt,a4paper]{article}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -880,7 +905,6 @@ def build_latex( parts ):
 
 def command_line_runner():
 
-
     try:
 
         argparser = get_argparser()
@@ -909,8 +933,7 @@ def command_line_runner():
             print( 'File not found' )
 
     except Exception as err:
-        print( err )
-        sys.exit( 1 )
+        print( '%s: %s' % ( type( err ).__name__, err ) )
 
 if __name__ == '__main__':
     command_line_runner()
