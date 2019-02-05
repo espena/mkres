@@ -10,6 +10,7 @@ under certain conditions."""
 
 import argparse
 import csv
+import inspect
 import matplotlib.pyplot
 import numpy
 import os
@@ -777,16 +778,37 @@ def parse_file( filename ):
 def build_table( part ):
     return r'''\pgfplotstabletypeset[begin table={\begin{tabularx}{\textwidth}{%(cols)s}}]{%(datafile)s}\FloatBarrier\bigskip''' % part
 
+def match_args( func, config ):
+
+    possible_args = inspect.signature( func ).parameters
+    actual_args = {}
+    for arg in possible_args:
+        if arg in config:
+            actual_args[ arg ] = config[ arg ]
+
+    return actual_args
+
+def as_bool( config, key ):
+    return True if ( config[ key ].lower() if key in config else 'false' ) == 'true' else False
+
 def build_graphics_barplot( part, dataset ):
 
     config = part[ 'seaborn' ]
-    seaborn.barplot( x = config['x'] if 'x' in config else None,
-                      y = config['y'] if 'y' in config else None,
-                      data = dataset,
-                      label = config['label'] if 'label' in config else '',
-                      color = config['color'] if 'color' in config else 'b' )
+    config[ 'data' ] = dataset
 
-    print( 'Here comes the bar chart...' )
+    args = match_args( matplotlib.pyplot.subplots, config )
+    args[ 'figsize' ] = ( int( config[ 'width' ] ) if 'width' in config else 10, int( config[ 'height' ] ) if 'height' in config else 7 )
+    f, ax = matplotlib.pyplot.subplots( **args )
+
+    args = match_args( seaborn.barplot, config )
+    args[ 'label' ] = config[ 'label' ] if 'label' in config else ''
+    seaborn.barplot( **args )
+
+    ax.set( ylabel = config[ 'ylabel' ] if 'ylabel' in config else '', xlabel = config[ 'xlabel' ] if 'xlabel' in config else ''  )
+
+    if as_bool( config, 'legend' ):
+        frameon = as_bool( config, 'frameon' )
+        ax.legend( ncol = 10, loc = 'lower right', frameon = frameon )
 
 def build_graphics( part ):
 
@@ -798,22 +820,17 @@ def build_graphics( part ):
     seaborn.set( style = config['style'] if 'style' in config else 'whitegrid' )
     seaborn.set_color_codes( config['color_codes'] if 'color_codes' in config else 'pastel' )
 
-    f, ax = matplotlib.pyplot.subplots( figsize = ( int( config[ 'width' ] ) if 'width' in config else 10, int( config[ 'height' ] ) if 'height' in config else 7 ) )
-
     plot = None
 
     try:
         globals()[ 'build_graphics_%s' % chart_type ] ( part, dataset )
 
     except KeyError as err:
-        raise AttributeError( 'No initializer exists for chart type \'%s\'' % chart_type ) from err
-
-    ax.legend( ncol = 2, loc = 'lower right', frameon = True )
-    ax.set( ylabel = config[ 'ylabel' ] if 'ylabel' in config else '', xlabel = config[ 'xlabel' ] if 'xlabel' in config else '' )
+        raise AttributeError( 'Wrong or missing attribute for chart type \'%s\'' % chart_type ) from err
 
     seaborn.despine( left = True, bottom = True )
 
-    matplotlib.pyplot.savefig( 'plot.png', dpi = 400 )
+    matplotlib.pyplot.savefig( 'plot.png', dpi = int( config[ 'dpi' ] ) if 'dpi' in config else 400 )
 
     return r'\emph{Her kommer grafikken!}'
 
