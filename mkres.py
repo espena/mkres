@@ -19,6 +19,7 @@ import re
 import seaborn
 import sys
 import tempfile
+import uuid
 import mysql.connector
 
 from collections import defaultdict
@@ -708,8 +709,11 @@ def parse_part( part ):
     m = re.compile( r'.*<WORDCLOUD>([^<]+)</WORDCLOUD>.*', re.MULTILINE | re.DOTALL ).match( part )
     wordcloud = m.groups( 1 )[ 0 ] if m is not None else None
 
+    if config is not None:
+        parse_part.config = config
+
     return {
-        'config': config,
+        'config': parse_part.config if hasattr( parse_part, 'config' ) else None,
         'statements': statements,
         'latex': latex,
         'cols': cols,
@@ -765,7 +769,7 @@ def parse_file( filename ):
             parts.append( p )
 
     except mysql.connector.Error as err:
-        print( 'Cound not connect to database' )
+        print( 'Database operation failed' )
         raise
 
     except ValueError as err:
@@ -796,48 +800,123 @@ def as_bool( config, key, default = 'false' ):
 
     return True if ( config[ key ].lower() if key in config else default.lower() ) == 'true' else False
 
-def build_graphics_barplot( part, config ):
+def as_tuple( str ):
 
-    args = match_args( matplotlib.pyplot.subplots, config )
-    args[ 'figsize' ] = ( int( config[ 'width' ] ) if 'width' in config else 10, int( config[ 'height' ] ) if 'height' in config else 7 )
-    f, ax = matplotlib.pyplot.subplots( **args )
+    m = re.compile( '\(\s*([0-9]+)\s*,\s*([0-9]+)\s*\)' ).match( str )
+    if m is not None:
+        return ( int( m.groups( 1 ) ), int( m.groups( 2 ) ) )
+    return None
 
-    args = match_args( seaborn.barplot, config )
-    args[ 'label' ] = config[ 'label' ] if 'label' in config else ''
+def configure_axes( gfxconfig, axes ):
+
+    axes.set(
+        xbound = (
+            int( gfxconfig[ 'xbound_lower' ] ) if 'xbound_lower' in gfxconfig else None,
+            int( gfxconfig[ 'xbound_upper' ] ) if 'xbound_upper' in gfxconfig else None ),
+        ybound = (
+            int( gfxconfig[ 'ybound_lower' ] ) if 'ybound_lower' in gfxconfig else None,
+            int( gfxconfig[ 'ybound_upper' ] ) if 'ybound_upper' in gfxconfig else None ) )
+
+    axes.set(
+        ylabel = gfxconfig[ 'ylabel' ] if 'ylabel' in gfxconfig else '',
+        xlabel = gfxconfig[ 'xlabel' ] if 'xlabel' in gfxconfig else ''  )
+
+    if 'legend' in gfxconfig and gfxconfig[ 'legend' ] != False:
+        frameon = as_bool( gfxconfig, 'frameon' )
+        axes.legend( ncol = 10, loc = 'lower right', frameon = frameon )
+
+def build_graphics_barplot( part ):
+
+    gfxconfig = part[ 'seaborn' ]
+
+    args = match_args( matplotlib.pyplot.subplots, gfxconfig )
+    args[ 'figsize' ] = ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10, int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
+    figure, axes = matplotlib.pyplot.subplots( **args )
+
+    args = match_args( seaborn.barplot, gfxconfig )
+    args[ 'label' ] = gfxconfig[ 'label' ] if 'label' in gfxconfig else ''
     seaborn.barplot( **args )
 
-    ax.set( ylabel = config[ 'ylabel' ] if 'ylabel' in config else '', xlabel = config[ 'xlabel' ] if 'xlabel' in config else ''  )
+    configure_axes( gfxconfig, axes )
 
-    if as_bool( config, 'legend', 'false' ):
-        frameon = as_bool( config, 'frameon' )
-        ax.legend( ncol = 10, loc = 'lower right', frameon = frameon )
-
-    if as_bool( config, 'despine', 'true' ):
+    if as_bool( gfxconfig, 'despine', 'true' ):
         seaborn.despine( left = True, bottom = True )
+
+    return figure, axes
+
+def build_graphics_lineplot( part ):
+
+    gfxconfig = part[ 'seaborn' ]
+
+    args = match_args( matplotlib.pyplot.subplots, gfxconfig )
+    args[ 'figsize' ] = ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10, int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
+    figure, axes = matplotlib.pyplot.subplots( **args )
+
+    args = match_args( seaborn.lineplot, gfxconfig )
+    args[ 'label' ] = gfxconfig[ 'label' ] if 'label' in gfxconfig else ''
+    seaborn.lineplot( **args )
+
+    configure_axes( gfxconfig, axes )
+
+    if as_bool( gfxconfig, 'despine', 'true' ):
+        seaborn.despine( left = True, bottom = True )
+
+    return figure, axes
+
+def build_graphics_scatterplot( part ):
+
+    gfxconfig = part[ 'seaborn' ]
+    args = match_args( matplotlib.pyplot.subplots, gfxconfig )
+    args[ 'figsize' ] = ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10, int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
+
+    figure, axes = matplotlib.pyplot.subplots( **args )
+
+    args = match_args( seaborn.scatterplot, gfxconfig )
+    args[ 'label' ] = gfxconfig[ 'label' ] if 'label' in gfxconfig else ''
+    seaborn.scatterplot( **args )
+
+    configure_axes( gfxconfig, axes )
+
+    if as_bool( gfxconfig, 'despine', 'true' ):
+        seaborn.despine( left = True, bottom = True )
+
+    return figure, axes
 
 def build_graphics( part ):
 
-    config = part[ 'seaborn' ]
-    config[ 'data' ] = pandas.read_csv( part[ 'datafile' ], sep = '\t', dtype = None, encoding = 'utf-8' )
+    gfxconfig = part[ 'seaborn' ]
+    gfxconfig[ 'data' ] = pandas.read_csv( part[ 'datafile' ], sep = '\t', dtype = None, encoding = 'utf-8' )
 
-    chart_type = config[ 'chart_type' ] if 'chart_type' in config else 'barplot'
+    chart_type = gfxconfig[ 'chart_type' ] if 'chart_type' in gfxconfig else 'barplot'
 
-    seaborn.set( style = config['style'] if 'style' in config else 'whitegrid' )
-    seaborn.set_color_codes( config['color_codes'] if 'color_codes' in config else 'pastel' )
+    seaborn.set( style = gfxconfig['style'] if 'style' in gfxconfig else 'whitegrid' )
+    seaborn.set_color_codes( gfxconfig['color_codes'] if 'color_codes' in gfxconfig else 'pastel' )
 
     plot = None
 
+    if 'legend' not in gfxconfig or gfxconfig[ 'legend' ].lower() == 'false':
+        gfxconfig[ 'legend' ] = False
+
     try:
-        globals()[ 'build_graphics_%s' % chart_type ] ( part, config )
+        # Calling build_graphics_barplot / build_graphics_scatterplot / build_graphics_lineplot
+        globals()[ 'build_graphics_%s' % chart_type ] ( part )
 
     except KeyError as err:
         raise AttributeError( 'Wrong or missing attribute for chart type \'%s\'' % chart_type ) from err
 
-    matplotlib.pyplot.savefig( 'plot.png', dpi = int( config[ 'dpi' ] ) if 'dpi' in config else 400 )
+    if 'id' not in gfxconfig:
+        gfxconfig[ 'id' ] = str( uuid.uuid4() )
 
-    return r'\emph{Her kommer grafikken!}'
+    if 'outputfile' not in gfxconfig:
+        gfxconfig[ 'outputfile' ] = os.path.join( part[ 'config' ][ 'tempdir' ], '%s.png' % gfxconfig[ 'id' ] )
+
+    matplotlib.pyplot.savefig( gfxconfig[ 'outputfile' ], dpi = int( gfxconfig[ 'dpi' ] ) if 'dpi' in gfxconfig else 400 )
+
+    return gfxconfig[ 'outputfile' ]
+
 
 def build_latex_body( parts ):
+
     body = ''
     for part in parts:
         body += r'''
@@ -847,18 +926,24 @@ def build_latex_body( parts ):
         if part[ 'cols' ] is not None:
             body += build_table( part )
         if part[ 'seaborn' ] is not None:
-            body += build_graphics( part )
+            build_graphics( part )
         body += r'''
 \end{minipage}
 \bigskip'''
+
+    for part in parts:
+        gfxconf = part[ 'seaborn' ]
+        body = re.compile( '(.*)(path-to:%s)([^a-z_].*)'  % gfxconf[ 'id' ], re.MULTILINE | re.DOTALL | re.IGNORECASE ).sub( '\\1%s\\3' % gfxconf[ 'outputfile' ], body )
+
     return body
 
 def build_latex( parts ):
 
-    texdir = tempfile.mkdtemp()
+    tempdir = tempfile.mkdtemp()
     config = parts[ 0 ][ 'config' ]
-    config[ 'texmain' ] = os.path.join( texdir, 'main.tex' )
-    config[ 'texbody' ] = os.path.join( texdir, 'body.tex' )
+    config[ 'tempdir' ] = tempdir
+    config[ 'texmain' ] = os.path.join( tempdir, 'main.tex' )
+    config[ 'texbody' ] = os.path.join( tempdir, 'body.tex' )
 
     try:
         wrapper = r'''\documentclass[10pt,a4paper]{article}
