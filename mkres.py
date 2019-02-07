@@ -11,6 +11,7 @@ under certain conditions."""
 import argparse
 import csv
 import inspect
+import linecache
 import matplotlib.pyplot
 import numpy
 import os
@@ -31,9 +32,9 @@ __license__ = 'GPL v3'
 
 class LicenseWriter( argparse.Action ):
 
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+    def __init__( self, option_strings, dest, nargs = None, **kwargs ):
 
-        self.__license_text = '''\
+        self.__license_text = r'''
 
         GNU GENERAL PUBLIC LICENSE
            Version 3, 29 June 2007
@@ -656,11 +657,20 @@ Program, unless a warranty or assumption of liability accompanies a
 copy of the Program in return for a fee.
 
 '''
-        super(LicenseWriter, self).__init__(option_strings, dest, nargs=0, **kwargs)
+        super( LicenseWriter, self ).__init__( option_strings, dest, nargs = 0, **kwargs )
 
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__( self, parser, namespace, values, option_string = None ):
         print( self.__license_text )
         parser.exit()
+
+def print_exception():
+    exc_type, exc_obj, tb = sys.exc_info()
+    f = tb.tb_frame
+    lineno = tb.tb_lineno
+    filename = f.f_code.co_filename
+    linecache.checkcache( filename )
+    line = linecache.getline( filename, lineno, f.f_globals )
+    print( 'Exception in ({}, ln {} "{}"): {}'.format( filename, lineno, line.strip(), exc_obj ) )
 
 def mkfilename( str ):
 
@@ -691,30 +701,42 @@ def parse_parameters( str ):
 
 def parse_part( part ):
 
-    statements = re.compile( r'\/\*.*?\*\/', re.MULTILINE | re.DOTALL ).sub( '', part ).replace( '\n', ' ' ).replace( '\r', ' ' ).split( ';' )
-    statements = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), statements ) ) )
+    statements = re.sub( r'\/\*.*?\*\/', '', part, 0, re.MULTILINE | re.DOTALL ).replace( '\n', ' ' ).replace( '\r', ' ' ).split( ';' )
+    statements = list( filter( lambda s: s != '', map( lambda s: re.sub( r'\s+', ' ', s.strip().replace( '  ', ' ' ), 0 ), statements ) ) )
 
-    m = re.compile( r'.*<CONFIG>([^<]+)</CONFIG>.*', re.MULTILINE | re.DOTALL ).match( part )
+    m = re.search( r'<CONFIG>([^<]+)</CONFIG>', part, re.MULTILINE )
     config = parse_parameters( str( m.groups( 1 )[ 0 ] ) ) if m is not None else None
 
-    m = re.compile( r'.*<LATEX>([^<]+)</LATEX>.*', re.MULTILINE | re.DOTALL ).match( part )
+    m = re.search( r'<LATEX>([^<]+)</LATEX>', part, re.MULTILINE )
     latex = m.groups( 1 )[ 0 ] if m is not None else None
 
-    m = re.compile( r'.*<COLS>([^<]+)</COLS>.*', re.MULTILINE | re.DOTALL ).match( part )
+    m = re.search( r'<COLS>([^<]+)</COLS>', part, re.MULTILINE )
     cols = m.groups( 1 )[ 0 ] if m is not None else None
 
-    m = re.compile( r'.*<SEABORN>([^<]+)</SEABORN>.*', re.MULTILINE | re.DOTALL ).match( part )
+    m = re.search( r'<SEABORN>([^<]+)</SEABORN>', part, re.MULTILINE )
     seaborn = parse_parameters( str( m.groups( 1 )[ 0 ] ) ) if m is not None else None
 
-    m = re.compile( r'.*<WORDCLOUD>([^<]+)</WORDCLOUD>.*', re.MULTILINE | re.DOTALL ).match( part )
+    m = re.search( r'<WORDCLOUD>([^<]+)</WORDCLOUD>', part, re.MULTILINE )
     wordcloud = m.groups( 1 )[ 0 ] if m is not None else None
 
+    m = re.search( r'\\section\{([^\}]+)\}', latex, re.MULTILINE )
+    section = m.groups( 1 )[ 0 ] if m is not None else None
+
+    m = re.search( r'\\subsection\{([^\}]+)\}', latex, re.MULTILINE )
+    subsection = m.groups( 1 )[ 0 ] if m is not None else None
+
+    m = re.search( r'\\subsubsection\{([^\}]+)\}', latex, re.MULTILINE )
+    subsubsection = m.groups( 1 )[ 0 ] if m is not None else None
+
     if config is not None:
-        parse_part.config = config
+        parse_part._config = config
 
     return {
-        'config': parse_part.config if hasattr( parse_part, 'config' ) else None,
+        'config': parse_part._config if hasattr( parse_part, '_config' ) else None,
         'statements': statements,
+        'section': section,
+        'subsection': subsection,
+        'subsubsection': subsubsection,
         'latex': latex,
         'cols': cols,
         'seaborn': seaborn,
@@ -731,12 +753,22 @@ def parse_file( filename ):
     cnx, cur = None, None
 
     try:
+
         for i, part in enumerate( input ):
 
             p = parse_part( part )
 
+            if p[ 'section' ] is not None:
+                print( '%s:' % p[ 'section' ] )
+
+            if p[ 'subsection' ] is not None:
+                print( ' -- %s' % p[ 'subsection' ] )
+
+            if p[ 'subsubsection' ] is not None:
+                print( ' ---- %s' % p[ 'subsubsection' ] )
+
             if p[ 'config' ] is None:
-                raise ValueError( 'There\'s no <CONFIG> block in your source file.' )
+                raise ValueError( 'There\'s no <CONFIG> block in the source file.' )
 
             c = p[ 'config' ]
 
@@ -773,7 +805,7 @@ def parse_file( filename ):
         raise
 
     except ValueError as err:
-        print( 'Ivalid or missing parameter' )
+        print( 'Invalid or missing config parameter' )
         raise
 
     finally:
@@ -803,9 +835,7 @@ def as_bool( config, key, default = 'false' ):
 def as_tuple( str ):
 
     m = re.compile( '\(\s*([0-9]+)\s*,\s*([0-9]+)\s*\)' ).match( str )
-    if m is not None:
-        return ( int( m.groups( 1 ) ), int( m.groups( 2 ) ) )
-    return None
+    return ( int( m.groups( 1 ) ), int( m.groups( 2 ) ) ) if m is not None else None
 
 def configure_axes( gfxconfig, axes ):
 
@@ -932,8 +962,8 @@ def build_latex_body( parts ):
 \bigskip'''
 
     for part in parts:
-        gfxconf = part[ 'seaborn' ]
-        body = re.compile( '(.*)(path-to:%s)([^a-z_].*)'  % gfxconf[ 'id' ], re.MULTILINE | re.DOTALL | re.IGNORECASE ).sub( '\\1%s\\3' % gfxconf[ 'outputfile' ], body )
+        if part[ 'seaborn' ] is None: continue
+        body = re.compile( '(.*)(path-to:%s)([^a-z_].*)'  % part[ 'seaborn' ][ 'id' ], re.MULTILINE | re.DOTALL | re.IGNORECASE ).sub( '\\1%s\\3' % part[ 'seaborn' ][ 'outputfile' ], body )
 
     return body
 
@@ -1000,10 +1030,10 @@ def build_latex( parts ):
         print( 'Configuration parameter %s is missing from the input file' % e )
         sys.exit( 1 )
 
-    with open( config[ 'texmain' ], 'w' ) as input:
+    with open( config[ 'texmain' ], 'w', encoding='utf-8' ) as input:
         input.write( wrapper )
 
-    with open( config[ 'texbody' ], 'w' ) as input:
+    with open( config[ 'texbody' ], 'w', encoding='utf-8' ) as input:
         input.write( build_latex_body( parts ) )
 
     return config[ 'texmain' ]
@@ -1038,7 +1068,8 @@ def command_line_runner():
             print( 'File not found' )
 
     except Exception as err:
-        print( '%s: %s' % ( type( err ).__name__, err ) )
+
+        print_exception()
 
 if __name__ == '__main__':
     command_line_runner()
