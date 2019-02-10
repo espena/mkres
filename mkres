@@ -1021,32 +1021,32 @@ def build_latex( parts ):
 \renewcommand{\arraystretch}{1.2}
 \pgfplotsset{compat=1.13}
 \pgfplotstableset {
-	column type=,
-	end table={\end{tabularx}},
-	col sep=comma,
-	string type,
-	every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
-	every head row/.append style={
+    column type=,
+    end table={\end{tabularx}},
+    col sep=comma,
+    string type,
+    every head row/.style={after row=\hline\rule{0pt}{4.5mm}},
+    every head row/.append style={
       typeset cell/.code={
-			\ifnum\pgfplotstablecol=\pgfplotstablecols
-      			\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}\\\\}
-      		\else
-      			\pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}&}
-      		\fi
-      	}
+    \ifnum\pgfplotstablecol=\pgfplotstablecols
+                  \pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}\\\\}
+              \else
+                  \pgfkeyssetvalue{/pgfplots/table/@cell content}{\textbf{##1}&}
+              \fi
+          }
   },
-	every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
+    every last row/.style={after row=\hline\rule{0pt}{4.5mm}}
 }
 \title{%(document_title)s}
 \author{%(document_author)s}
 \begin{document}
-	\maketitle
-	\newpage
-	\tableofcontents
-	\newpage
-	\begin{flushleft}
-	\input{body.tex}
-	\end{flushleft}
+    \maketitle
+    \newpage
+    \tableofcontents
+    \newpage
+    \begin{flushleft}
+    \input{body.tex}
+    \end{flushleft}
 \end{document}''' % config
 
     except KeyError as e:
