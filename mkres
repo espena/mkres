@@ -686,24 +686,44 @@ def get_argparser():
 
     parser.register( 'action', 'license', LicenseWriter )
 
-    parser.add_argument( '-c', '--copyright', action='license', help='display license info' )
-    parser.add_argument( '-o', '--output', help='file name of output PDF' )
-    parser.add_argument( '-t', '--tex', action='store_true', help="ouput LaTeX source repo")
-    parser.add_argument( '-v', '--version', action='version', version="%(prog)s (" + __version__ + ")", help="display version info")
-    parser.add_argument( 'INPUT', help='file name of input PDF' )
+    parser.add_argument( '-c',
+                         '--copyright',
+                         action='license',
+                         help='display license info' )
+
+    parser.add_argument( '-o',
+                         '--output',
+                         help='file name of output PDF' )
+
+    parser.add_argument( '-t',
+                         '--tex',
+                         action='store_true',
+                         help='ouput LaTeX source repo' )
+
+    parser.add_argument( '-v',
+                         '--version',
+                         action='version',
+                         version="%(prog)s (" + __version__ + ")",
+                         help="display version info")
+
+    parser.add_argument( 'INPUT',
+                         help='file name of input PDF' )
 
     return parser
 
 def parse_parameters( str ):
 
     config = str.split( '\n' )
-    config = list( filter( lambda s: s != '', map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), config ) ) )
+    config = map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), config )
+    config = list( filter( lambda s: s != '', config ) )
     return { k.strip() : v.strip() for k, v in ( param.split( '=' ) for param in config ) }
 
 def parse_part( part ):
 
-    statements = re.sub( r'\/\*.*?\*\/', '', part, 0, re.MULTILINE | re.DOTALL ).replace( '\n', ' ' ).replace( '\r', ' ' ).split( ';' )
-    statements = list( filter( lambda s: s != '', map( lambda s: re.sub( r'\s+', ' ', s.strip().replace( '  ', ' ' ), 0 ), statements ) ) )
+    statements = re.sub( r'\/\*.*?\*\/', '', part, 0, re.MULTILINE | re.DOTALL )
+    statements = statements.replace( '\n', ' ' ).replace( '\r', ' ' ).split( ';' )
+    statements = map( lambda s: re.sub( r'\s+', ' ', s.strip().replace( '  ', ' ' ), 0 ), statements )
+    statements = list( filter( lambda s: s != '', statements ) )
 
     m = re.search( r'<CONFIG>([^<]+)</CONFIG>', part, re.MULTILINE )
     config = parse_parameters( str( m.groups( 1 )[ 0 ] ) ) if m is not None else None
@@ -816,7 +836,8 @@ def parse_file( filename ):
 def build_table( part ):
 
     relative_path = os.path.relpath( part[ 'datafile' ], part[ 'config' ][ 'tempdir' ] )
-    return r'''\pgfplotstabletypeset[begin table={\begin{tabularx}{\textwidth}{%(cols)s}}]{%(datafile)s}\FloatBarrier\bigskip''' % part[ 'cols' ], relative_path
+    return ( r'''\pgfplotstabletypeset[begin table={\begin{tabularx}{\textwidth}{%(cols)s}}]'''
+             r'''{%(datafile)s}\FloatBarrier\bigskip''' ) % part[ 'cols' ], relative_path
 
 def match_args( func, config ):
 
@@ -855,12 +876,15 @@ def configure_axes( gfxconfig, axes ):
         frameon = as_bool( gfxconfig, 'frameon' )
         axes.legend( ncol = 10, loc = 'lower right', frameon = frameon )
 
+def get_figsize( gfxconfig ):
+    return ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10,
+             int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
+
 def build_graphics_barplot( part ):
 
     gfxconfig = part[ 'seaborn' ]
-
     args = match_args( matplotlib.pyplot.subplots, gfxconfig )
-    args[ 'figsize' ] = ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10, int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
+    args[ 'figsize' ] = get_figsize( gfxconfig )
     figure, axes = matplotlib.pyplot.subplots( **args )
 
     args = match_args( seaborn.barplot, gfxconfig )
@@ -877,9 +901,8 @@ def build_graphics_barplot( part ):
 def build_graphics_lineplot( part ):
 
     gfxconfig = part[ 'seaborn' ]
-
     args = match_args( matplotlib.pyplot.subplots, gfxconfig )
-    args[ 'figsize' ] = ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10, int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
+    args[ 'figsize' ] = get_figsize( gfxconfig )
     figure, axes = matplotlib.pyplot.subplots( **args )
 
     args = match_args( seaborn.lineplot, gfxconfig )
@@ -897,8 +920,7 @@ def build_graphics_scatterplot( part ):
 
     gfxconfig = part[ 'seaborn' ]
     args = match_args( matplotlib.pyplot.subplots, gfxconfig )
-    args[ 'figsize' ] = ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10, int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
-
+    args[ 'figsize' ] = get_figsize( gfxconfig )
     figure, axes = matplotlib.pyplot.subplots( **args )
 
     args = match_args( seaborn.scatterplot, gfxconfig )
@@ -940,7 +962,8 @@ def build_graphics( part ):
     if 'outputfile' not in gfxconfig:
         gfxconfig[ 'outputfile' ] = os.path.join( part[ 'config' ][ 'tempdir' ], '%s.png' % gfxconfig[ 'id' ] )
 
-    matplotlib.pyplot.savefig( gfxconfig[ 'outputfile' ], dpi = int( gfxconfig[ 'dpi' ] ) if 'dpi' in gfxconfig else 400 )
+    resolution = int( gfxconfig[ 'dpi' ] ) if 'dpi' in gfxconfig else 400
+    matplotlib.pyplot.savefig( gfxconfig[ 'outputfile' ], dpi = resolution )
 
     return gfxconfig[ 'outputfile' ]
 
@@ -964,7 +987,8 @@ def build_latex_body( parts ):
     for part in parts:
         if part[ 'seaborn' ] is None: continue
         relative_path = os.path.relpath( part[ 'seaborn' ][ 'outputfile' ], part[ 'config' ][ 'tempdir' ] )
-        body = re.compile( '(.*)(path-to:%s)([^a-z_].*)'  % part[ 'seaborn' ][ 'id' ], re.MULTILINE | re.DOTALL | re.IGNORECASE ).sub( '\\1%s\\3' % relative_path, body )
+        pat = '(.*)(path-to:%s)([^a-z_].*)'  % part[ 'seaborn' ][ 'id' ]
+        body = re.compile( pat, re.MULTILINE | re.DOTALL | re.IGNORECASE ).sub( '\\1%s\\3' % relative_path, body )
 
     return body
 
@@ -1026,6 +1050,7 @@ def build_latex( parts ):
 \end{document}''' % config
 
     except KeyError as e:
+
         print( 'Configuration parameter %s is missing from the input file' % e )
         sys.exit( 1 )
 
@@ -1038,15 +1063,23 @@ def build_latex( parts ):
     return config[ 'texmain' ]
 
 def export_tex_repository( config ):
-    i = 0
+
+    attempt = 0
     config[ 'export_name' ] = config[ 'output_name' ]
     while os.path.isdir( config[ 'export_name' ] ):
-        i = i + 1
-        config[ 'export_name' ] = '%s_%02d' % ( config[ 'output_name' ], i )
-        print( config[ 'export_name' ] )
-        if i == 99:
-            errdesc = 'Gave up after %d attempts to create directory for LaTeX export (a directory named %s already exists)' % ( i, config[ 'export_name' ] )
+
+        attempt = attempt + 1
+        config[ 'export_name' ] = '%s_%02d' % ( config[ 'output_name' ], attempt )
+
+        if attempt == 99:
+
+            msg_fmt = ( 'Gave up after %d attempts to create directory '
+                        'for LaTeX export (a directory named %s already exists)' )
+
+            errdesc = msg_fmt % ( attempt + 1, config[ 'export_name' ] )
+
             raise SystemError( errdesc )
+
     shutil.copytree( config[ 'tempdir' ], config[ 'export_name' ] )
     print( 'LaTeX source exported to directory \'%s\'' % config[ 'export_name' ] )
 
@@ -1059,7 +1092,11 @@ def command_line_runner():
 
         parts = parse_file( args.INPUT )
         config = parts[ 0 ][ 'config' ]
-        config[ 'output_name' ] =  os.path.splitext( mkfilename( config[ 'outputfile' ] ) if 'outputfile' in config else os.path.basename( args.INPUT ) )[ 0 ]
+
+        of = mkfilename(
+            config[ 'outputfile' ] ) if 'outputfile' in config else os.path.basename( args.INPUT )
+
+        config[ 'output_name' ] = os.path.splitext( of )[ 0 ]
 
         texfile = build_latex( parts )
 
