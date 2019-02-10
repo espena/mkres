@@ -665,12 +665,14 @@ copy of the Program in return for a fee.
         parser.exit()
 
 def print_exception():
+
     exc_type, exc_obj, tb = sys.exc_info()
     f = tb.tb_frame
     lineno = tb.tb_lineno
     filename = f.f_code.co_filename
     linecache.checkcache( filename )
     line = linecache.getline( filename, lineno, f.f_globals )
+
     print( 'Exception in ({}, ln {} "{}"): {}'.format( filename, lineno, line.strip(), exc_obj ) )
 
 def mkfilename( str ):
@@ -820,14 +822,17 @@ def parse_file( filename ):
             parts.append( part )
 
     except mysql.connector.Error as err:
+
         print( 'Database operation failed' )
         raise
 
     except ValueError as err:
+
         print( 'Invalid or missing config parameter' )
         raise
 
     finally:
+
         if cur is not None: cur.close()
         if cnx is not None: cnx.close()
 
@@ -880,59 +885,36 @@ def get_figsize( gfxconfig ):
     return ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10,
              int( gfxconfig[ 'height' ] ) if 'height' in gfxconfig else 7 )
 
-def build_graphics_barplot( part ):
+def init_graphics_context( part, plot_type ):
 
     gfxconfig = part[ 'seaborn' ]
     args = match_args( matplotlib.pyplot.subplots, gfxconfig )
     args[ 'figsize' ] = get_figsize( gfxconfig )
+
     figure, axes = matplotlib.pyplot.subplots( **args )
 
-    args = match_args( seaborn.barplot, gfxconfig )
+    args = match_args( plot_type, gfxconfig )
     args[ 'label' ] = gfxconfig[ 'label' ] if 'label' in gfxconfig else ''
-    seaborn.barplot( **args )
 
+    plot_type( **args )
     configure_axes( gfxconfig, axes )
 
     if as_bool( gfxconfig, 'despine', 'true' ):
         seaborn.despine( left = True, bottom = True )
 
     return figure, axes
+
+def build_graphics_barplot( part ):
+
+    return init_graphics_context( part, seaborn.barplot )
 
 def build_graphics_lineplot( part ):
 
-    gfxconfig = part[ 'seaborn' ]
-    args = match_args( matplotlib.pyplot.subplots, gfxconfig )
-    args[ 'figsize' ] = get_figsize( gfxconfig )
-    figure, axes = matplotlib.pyplot.subplots( **args )
-
-    args = match_args( seaborn.lineplot, gfxconfig )
-    args[ 'label' ] = gfxconfig[ 'label' ] if 'label' in gfxconfig else ''
-    seaborn.lineplot( **args )
-
-    configure_axes( gfxconfig, axes )
-
-    if as_bool( gfxconfig, 'despine', 'true' ):
-        seaborn.despine( left = True, bottom = True )
-
-    return figure, axes
+    return init_graphics_context( part, seaborn.lineplot )
 
 def build_graphics_scatterplot( part ):
 
-    gfxconfig = part[ 'seaborn' ]
-    args = match_args( matplotlib.pyplot.subplots, gfxconfig )
-    args[ 'figsize' ] = get_figsize( gfxconfig )
-    figure, axes = matplotlib.pyplot.subplots( **args )
-
-    args = match_args( seaborn.scatterplot, gfxconfig )
-    args[ 'label' ] = gfxconfig[ 'label' ] if 'label' in gfxconfig else ''
-    seaborn.scatterplot( **args )
-
-    configure_axes( gfxconfig, axes )
-
-    if as_bool( gfxconfig, 'despine', 'true' ):
-        seaborn.despine( left = True, bottom = True )
-
-    return figure, axes
+    return init_graphics_context( part, seaborn.scatterplot )
 
 def build_graphics( part ):
 
@@ -950,7 +932,7 @@ def build_graphics( part ):
         gfxconfig[ 'legend' ] = False
 
     try:
-        # Calling build_graphics_barplot / build_graphics_scatterplot / build_graphics_lineplot
+        # One of build_graphics_barplot / build_graphics_scatterplot / build_graphics_lineplot methods
         globals()[ 'build_graphics_%s' % chart_type ] ( part )
 
     except KeyError as err:
@@ -971,21 +953,27 @@ def build_graphics( part ):
 def build_latex_body( parts ):
 
     body = ''
+
     for part in parts:
         body += r'''
 \begin{minipage}{\textwidth}
     \setlength{\parskip}{\baselineskip}%(latex)s\medskip
     \FloatBarrier''' % part
+
         if part[ 'cols' ] is not None:
             body += build_table( part )
+
         if part[ 'seaborn' ] is not None:
             build_graphics( part )
+
         body += r'''
 \end{minipage}
 \bigskip'''
 
     for part in parts:
+
         if part[ 'seaborn' ] is None: continue
+
         relative_path = os.path.relpath( part[ 'seaborn' ][ 'outputfile' ], part[ 'config' ][ 'tempdir' ] )
         pat = '(.*)(path-to:%s)([^a-z_].*)'  % part[ 'seaborn' ][ 'id' ]
         body = re.compile( pat, re.MULTILINE | re.DOTALL | re.IGNORECASE ).sub( '\\1%s\\3' % relative_path, body )
