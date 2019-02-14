@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.7
 """\
 mkres - Make research
 
@@ -9,8 +9,10 @@ This is free software, and you are welcome to redistribute it
 under certain conditions."""
 
 import argparse
+import ast
 import inspect
 import linecache
+import matplotlib.pylab
 import matplotlib.pyplot
 import numpy
 import os
@@ -20,6 +22,7 @@ import seaborn
 import shutil
 import sys
 import tempfile
+import textwrap
 import unicodecsv as csv
 import uuid
 import mysql.connector
@@ -113,12 +116,13 @@ def parse_parameters( str ):
     config = str.split( '\n' )
     config = map( lambda s: re.compile( r'\s+' ).sub( s.strip().replace( '  ', ' ' ), ' ' ), config )
     config = list( filter( lambda s: s != '', config ) )
-    return { k.strip() : v.strip() for k, v in ( param.split( '=' ) for param in config ) }
+    return { k.strip() : v.strip().strip( '"' ) for k, v in ( param.split( '=' ) for param in config ) }
 
 def parse_part( part ):
 
     statements = re.sub( r'\/\*.*?\*\/', '', part, 0, re.MULTILINE | re.DOTALL )
     statements = statements.replace( '\n', ' ' ).replace( '\r', ' ' ).split( ';' )
+
     statements = map( lambda s: re.sub( r'\s+', ' ', s.strip().replace( '  ', ' ' ), 0 ), statements )
     statements = list( filter( lambda s: s != '', statements ) )
 
@@ -126,7 +130,7 @@ def parse_part( part ):
     config = parse_parameters( str( m.groups( 1 )[ 0 ] ) ) if m is not None else None
 
     m = re.search( r'<LATEX>([^<]+)</LATEX>', part, re.MULTILINE )
-    latex = m.groups( 1 )[ 0 ] if m is not None else None
+    latex = m.groups( 1 )[ 0 ] if m is not None else ''
 
     m = re.search( r'<COLS>([^<]+)</COLS>', part, re.MULTILINE )
     cols = m.groups( 1 )[ 0 ] if m is not None else None
@@ -182,16 +186,13 @@ def parse_file( filename ):
         config = part[ 'config' ]
 
         if part[ 'section' ] is not None:
-            sys.stdout.buffer.write( ( '%s:\n' % part[ 'section' ] ).encode( 'utf8' ) )
-            sys.stdout.buffer.flush()
+            print( '\33[1m\33[37m%s\33[0m' % part[ 'section' ] )
 
         if part[ 'subsection' ] is not None:
-            sys.stdout.buffer.write( ( ' -- %s\n' % part[ 'subsection' ] ).encode( 'utf8' ) )
-            sys.stdout.buffer.flush()
+            print( '\33[37m -- %s\33[0m' % part[ 'subsection' ] )
 
         if part[ 'subsubsection' ] is not None:
-            sys.stdout.buffer.write( ( ' ---- %s\n' % part[ 'subsubsection' ] ).encode( 'utf8' ) )
-            sys.stdout.buffer.flush()
+            print( '\33[37m ---- %s\33[0m' % part[ 'subsubsection' ] )
 
         if part[ 'config' ] is None:
             raise ValueError( 'There\'s no <CONFIG> block in the source file.' )
@@ -205,9 +206,13 @@ def parse_file( filename ):
 
         cur = cnx.cursor( buffered = True )
 
-        for statement in part[ 'statements' ]:
+        for j, statement in enumerate( part[ 'statements' ] ):
+
+            print( f'\033[93m      SQL: ({i+j}) {textwrap.shorten( statement, width=75, placeholder="..." )}', end='\r' )
 
             cur.execute( statement )
+
+            print( ' ' * 100, end='\r' )
 
             if cur.rowcount == 0: continue
 
@@ -256,19 +261,56 @@ def configure_axes( gfxconfig, axes ):
 
     axes.set(
         xbound = (
-            int( gfxconfig[ 'xbound_lower' ] ) if 'xbound_lower' in gfxconfig else None,
-            int( gfxconfig[ 'xbound_upper' ] ) if 'xbound_upper' in gfxconfig else None ),
+            int( gfxconfig[ 'bound_lower_x' ] ) if 'bound_lower_x' in gfxconfig else None,
+            int( gfxconfig[ 'bound_upper_x' ] ) if 'bound_upper_x' in gfxconfig else None ),
         ybound = (
-            int( gfxconfig[ 'ybound_lower' ] ) if 'ybound_lower' in gfxconfig else None,
-            int( gfxconfig[ 'ybound_upper' ] ) if 'ybound_upper' in gfxconfig else None ) )
+            int( gfxconfig[ 'bound_lower_y' ] ) if 'bound_lower_y' in gfxconfig else None,
+            int( gfxconfig[ 'bound_upper_y' ] ) if 'bound_upper_y' in gfxconfig else None ) )
 
     axes.set(
-        ylabel = gfxconfig[ 'ylabel' ] if 'ylabel' in gfxconfig else '',
-        xlabel = gfxconfig[ 'xlabel' ] if 'xlabel' in gfxconfig else ''  )
+        xlabel = gfxconfig[ 'label_x' ] if 'label_x' in gfxconfig else '',
+        ylabel = gfxconfig[ 'label_y' ] if 'label_y' in gfxconfig else '' )
 
     if 'legend' in gfxconfig and gfxconfig[ 'legend' ] != False:
         frameon = as_bool( gfxconfig, 'frameon' )
         axes.legend( ncol = 10, loc = 'lower right', frameon = frameon )
+
+    xaxis = axes.get_xaxis()
+    yaxis = axes.get_yaxis()
+
+    if 'max_n_locator_x' in gfxconfig:
+        xaxis.set_major_locator( matplotlib.pyplot.MaxNLocator( int( gfxconfig[ 'max_n_locator_x' ] ) ) )
+
+    if 'max_n_locator_y' in gfxconfig:
+        yaxis.set_major_locator( matplotlib.pyplot.MaxNLocator( int( gfxconfig[ 'max_n_locator_y' ] ) ) )
+
+    if 'use_scientific_x' in gfxconfig:
+        xaxis.get_major_formatter().set_scientific( as_bool( gfxconfig, 'use_scientific_x' ) )
+    else:
+        xaxis.get_major_formatter().set_scientific( False )
+
+    if 'use_scientific_y' in gfxconfig:
+        yaxis.get_major_formatter().set_scientific( as_bool( gfxconfig, 'use_scientific_y' ) )
+    else:
+        yaxis.get_major_formatter().set_scientific( False )
+
+    if 'thousand_separator_x' in gfxconfig:
+        sep = gfxconfig[ 'thousand_separator_x' ]
+        xaxis.set_major_formatter( matplotlib.ticker.FuncFormatter( lambda x, p: '{:,}'.format( int( x ) ).replace( ',', sep ) ) )
+
+    if 'thousand_separator_y' in gfxconfig:
+        sep = gfxconfig[ 'thousand_separator_y' ]
+        yaxis.set_major_formatter( matplotlib.ticker.FuncFormatter( lambda x, p: '{:,}'.format( int( x ) ).replace( ',', sep ) ) )
+
+    if 'ticks_positions_x' in gfxconfig:
+        ticks = ast.literal_eval( gfxconfig[ 'ticks_positions_x' ] )
+        labels = ast.literal_eval( gfxconfig[ 'ticks_labels_x' ] ) if 'ticks_labels_x' in gfxconfig else [ ]
+        matplotlib.pyplot.xticks( ticks, labels )
+
+    if 'ticks_positions_y' in gfxconfig:
+        ticks = ast.literal_eval( gfxconfig[ 'ticks_positions_y' ] )
+        labels = ast.literal_eval( gfxconfig[ 'ticks_labels_y' ] ) if 'ticks_labels_y' in gfxconfig else [ ]
+        matplotlib.pyplot.yticks( ticks, labels )
 
 def get_figsize( gfxconfig ):
     return ( int( gfxconfig[ 'width' ] ) if 'width' in gfxconfig else 10,
@@ -277,19 +319,47 @@ def get_figsize( gfxconfig ):
 def init_graphics_context( part, plot_type ):
 
     gfxconfig = part[ 'seaborn' ]
+
     args = match_args( matplotlib.pyplot.subplots, gfxconfig )
     args[ 'figsize' ] = get_figsize( gfxconfig )
 
     figure, axes = matplotlib.pyplot.subplots( **args )
 
+    if 'subplots_adjust_top' in gfxconfig:
+        figure.subplots_adjust( top = float( gfxconfig[ 'subplots_adjust_top' ] ) )
+    else:
+        figure.subplots_adjust( top = 0.9 )
+
+    if 'subplots_adjust_right' in gfxconfig:
+        figure.subplots_adjust( right = float( gfxconfig[ 'subplots_adjust_right' ] ) )
+    else:
+        figure.subplots_adjust( right = 0.9 )
+
+    if 'subplots_adjust_bottom' in gfxconfig:
+        figure.subplots_adjust( bottom = float( gfxconfig[ 'subplots_adjust_bottom' ] ) )
+    else:
+        figure.subplots_adjust( bottom = 0.15 )
+
+    if 'subplots_adjust_left' in gfxconfig:
+        figure.subplots_adjust( left = float( gfxconfig[ 'subplots_adjust_left' ] ) )
+    else:
+        figure.subplots_adjust( left = 0.15 )
+
     args = match_args( plot_type, gfxconfig )
     args[ 'label' ] = gfxconfig[ 'label' ] if 'label' in gfxconfig else ''
 
-    plot_type( **args )
+    plot = plot_type( **args )
+
     configure_axes( gfxconfig, axes )
+
+    if 'ticks_labelsize' in gfxconfig:
+        plot.tick_params( labelsize = int( gfxconfig[ 'ticks_labelsize' ] ) )
 
     if as_bool( gfxconfig, 'despine', 'true' ):
         seaborn.despine( left = True, bottom = True )
+
+    for l in axes.lines:
+        matplotlib.pylab.setp( l, linewidth = 5.0 )
 
     return figure, axes
 
@@ -306,6 +376,8 @@ def build_graphics_scatterplot( part ):
     return init_graphics_context( part, seaborn.scatterplot )
 
 def build_graphics( part ):
+
+    print( f'\033[93m    SEABORN: Building {part[ "seaborn" ][ "chart_type" ]} {part[ "seaborn" ][ "id" ]}', end='\r' )
 
     gfxconfig = part[ 'seaborn' ]
     gfxconfig[ 'data' ] = pandas.read_csv( part[ 'datafile' ], sep = '\t', dtype = None, encoding = 'utf-8' )
@@ -336,6 +408,8 @@ def build_graphics( part ):
     resolution = int( gfxconfig[ 'dpi' ] ) if 'dpi' in gfxconfig else 400
     matplotlib.pyplot.savefig( gfxconfig[ 'outputfile' ], dpi = resolution )
 
+    print( ' ' * 100, end='\r' )
+
     return gfxconfig[ 'outputfile' ]
 
 
@@ -345,9 +419,8 @@ def build_latex_body( parts ):
 
     for part in parts:
         body += r'''
-\begin{minipage}{\textwidth}
-    \setlength{\parskip}{\baselineskip}%(latex)s\medskip
-    \FloatBarrier''' % part
+\setlength{\parskip}{\baselineskip}%(latex)s\medskip
+\FloatBarrier''' % part
 
         if part[ 'cols' ] is not None:
             body += build_table( part )
@@ -356,7 +429,6 @@ def build_latex_body( parts ):
             build_graphics( part )
 
         body += r'''
-\end{minipage}
 \bigskip'''
 
     for part in parts:
@@ -376,7 +448,7 @@ def build_latex( parts ):
     config[ 'texbody' ] = os.path.join( config[ 'tempdir' ], 'body.tex' )
 
     try:
-        wrapper = r'''\documentclass[10pt,a4paper]{article}
+        wrapper = r'''\documentclass[9pt,a4paper]{article}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
@@ -458,31 +530,51 @@ def export_tex_repository( config ):
 
             raise SystemError( errdesc )
 
+    print( f'\33[37m    LaTeX source exported to {config[ "export_name" ]}\33[0m' )
+
     shutil.copytree( config[ 'tempdir' ], config[ 'export_name' ] )
-    print( 'LaTeX source exported to directory \'%s\'' % config[ 'export_name' ] )
 
-def command_line_runner():
+    print( ' ' * 100, end='\r' )
 
-    argparser = get_argparser()
-    args = argparser.parse_args()
+def main():
 
-    parts = parse_file( args.INPUT )
-    config = parts[ 0 ][ 'config' ]
+    os.system( 'setterm -cursor off' )
+    print( "" )
 
-    of = mkfilename(
-        config[ 'outputfile' ] ) if 'outputfile' in config else os.path.basename( args.INPUT )
+    try:
 
-    config[ 'output_name' ] = os.path.splitext( of )[ 0 ]
+        argparser = get_argparser()
+        args = argparser.parse_args()
 
-    texfile = build_latex( parts )
+        parts = parse_file( args.INPUT )
+        config = parts[ 0 ][ 'config' ]
 
-    with open( texfile ) as tex_fp:
-        pdf = build_pdf( tex_fp, texinputs = [ config[ 'tempdir' ] ] )
+        of = mkfilename(
+            config[ 'outputfile' ] ) if 'outputfile' in config else os.path.basename( args.INPUT )
 
-    pdf.save_to( config[ 'output_name' ] + '.pdf' )
+        config[ 'output_name' ] = os.path.splitext( of )[ 0 ]
 
-    if args.tex == True:
-        export_tex_repository( config )
+        print( "" )
+
+        texfile = build_latex( parts )
+
+        print( f'\033[93m    PDFLATEX: Building PDF file {config[ "output_name" ] + ".pdf"}', end='\r' )
+
+        with open( texfile ) as tex_fp:
+            pdf = build_pdf( tex_fp, texinputs = [ config[ 'tempdir' ] ] )
+
+        pdf.save_to( config[ 'output_name' ] + '.pdf' )
+
+        print( ' ' * 100, end='\r' )
+
+        if args.tex == True:
+            export_tex_repository( config )
+
+    finally:
+        print( f'\n\33[1m\33[37m    DONE\33[0m' )
+        os.system( 'setterm -cursor on' ) # Restore visible cursor
+        print( '\033[m' ) # Restore native color
+
 
 if __name__ == '__main__':
-    command_line_runner()
+    main()
