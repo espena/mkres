@@ -34,6 +34,10 @@ from string import Template
 __version__ = '0.0.1'
 __license__ = 'GPL v3'
 
+class MkresErrorExit( Exception ):
+
+    pass
+
 class LicenseWriter( argparse.Action ):
 
     def __init__( self, option_strings, dest, nargs = None, **kwargs ):
@@ -177,13 +181,35 @@ def parse_file( filename ):
         try:
             input = [ delimiter + chunk for chunk in inputfile.read().split( delimiter ) if chunk ]
         except UnicodeDecodeError as err:
-            print( "Input file must be UTF-8 enoded." )
-            sys.exit( 1 )
+            print( "    Input file must be UTF-8 enoded." )
+            raise
 
     for i, rawpart in enumerate( input ):
 
         part = parse_part( rawpart )
         config = part[ 'config' ]
+
+        if part[ 'config' ] is None:
+            raise MkresErrorExit( f'Input file error\nMissing or malformed <CONFIG> element in the source file\'s header.' )
+
+        try:
+
+            cnx = mysql.connector.connect(
+                user = config[ 'user' ],
+                password = config[ 'password' ],
+                host = config[ 'host' ],
+                port = config[ 'port' ],
+                database = config[ 'database' ] )
+
+        except mysql.connector.errors.InterfaceError as err:
+
+            raise MkresErrorExit( f'Connection error\n{err}' ) from err
+
+        except KeyError as err:
+
+            raise MkresErrorExit( f'Malformed connection parameter\nConfiguration parameter {err} not found.' ) from err
+
+        cur = cnx.cursor( buffered = True )
 
         if part[ 'section' ] is not None:
             print( '\33[1m\33[37m%s\33[0m' % part[ 'section' ] )
@@ -193,18 +219,6 @@ def parse_file( filename ):
 
         if part[ 'subsubsection' ] is not None:
             print( '\33[37m ---- %s\33[0m' % part[ 'subsubsection' ] )
-
-        if part[ 'config' ] is None:
-            raise ValueError( 'There\'s no <CONFIG> block in the source file.' )
-
-        cnx = mysql.connector.connect(
-            user = config[ 'user' ],
-            password = config[ 'password' ],
-            host = config[ 'host' ],
-            port = config[ 'port' ],
-            database = config[ 'database' ] )
-
-        cur = cnx.cursor( buffered = True )
 
         for j, statement in enumerate( part[ 'statements' ] ):
 
@@ -541,6 +555,8 @@ def main():
     os.system( 'setterm -cursor off' )
     print( "" )
 
+    result = 'FAILED'
+
     try:
 
         argparser = get_argparser()
@@ -570,8 +586,15 @@ def main():
         if args.tex == True:
             export_tex_repository( config )
 
+        result = 'SUCCESS!'
+
+    except MkresErrorExit as err:
+
+        msg = '\n    \33[91m'.join( str( err ).split( '\n' ) )
+        print( f'\n\33[1m\33[37m    {msg}\33[0m' )
+
     finally:
-        print( f'\n\33[1m\33[37m    DONE\33[0m' )
+        print( f'\n\33[1m\33[37m    {result}\33[0m' )
         os.system( 'setterm -cursor on' ) # Restore visible cursor
         print( '\033[m' ) # Restore native color
 
